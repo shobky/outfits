@@ -3,13 +3,14 @@ import { CircleCheck, CircleDashed, LogOut } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { GarmentImage } from "@/components/drawer/item-card";
 import { toast } from "sonner";
 import { Field, MultiChips } from "@/components/drawer/attribute-picker";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { Segmented } from "@/components/ui/segmented";
 import { deleteItem, useItems, useProfile } from "@/lib/hooks";
-import type { Profile } from "@/lib/types";
+import type { Item, Profile } from "@/lib/types";
 import { api } from "@/lib/utils";
 
 const input = "h-11 w-full rounded-2xl border border-border bg-surface px-4 text-[15px] outline-none placeholder:text-faint focus:border-border-strong";
@@ -38,6 +39,7 @@ function ProfileForm({ data, onSaved }: { data: NonNullable<ReturnType<typeof us
         </div>
 
         <SampleItems />
+        <MissingPhotos />
 
         <Field label="Appearance">
           <Segmented value={(theme as "dark" | "light") ?? "dark"} onChange={setTheme} options={[{ value: "dark", label: "Dark" }, { value: "light", label: "Light" }]} />
@@ -158,6 +160,76 @@ function SampleItems() {
       >
         Remove
       </Button>
+    </div>
+  );
+}
+
+const photoLoads = (url: string) =>
+  new Promise<boolean>((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve(true);
+    img.onerror = () => resolve(false);
+    img.src = url;
+  });
+
+function MissingPhotos() {
+  const { data } = useItems();
+  const [found, setFound] = useState<Item[] | null>(null);
+  const [busy, setBusy] = useState(false);
+  const items = data?.items ?? [];
+  if (!items.length) return null;
+
+  const check = async () => {
+    setBusy(true);
+    const loaded = await Promise.all(items.map((i) => (i.image_url ? photoLoads(i.image_url) : false)));
+    setFound(items.filter((_, n) => !loaded[n]));
+    setBusy(false);
+  };
+
+  const removeAll = async () => {
+    if (!found || !confirm(`Permanently delete ${found.length} piece${found.length === 1 ? "" : "s"} with no photo?`)) return;
+    setBusy(true);
+    try {
+      for (const i of found) await deleteItem(i.id);
+      setFound([]);
+      toast("Pieces deleted");
+    } catch (e) {
+      toast.error(`Couldn't delete them all: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="space-y-3 rounded-[22px] bg-surface p-4">
+      <div className="flex items-center gap-3">
+        <div className="flex-1">
+          <p className="text-[14px] font-medium">Missing photos</p>
+          <p className="text-[12.5px] text-muted">
+            {found === null ? "Find pieces whose photo is gone or won't load." : found.length ? `${found.length} piece${found.length === 1 ? "" : "s"} found. Open one in your drawer to re-upload.` : "All your pieces have working photos."}
+          </p>
+        </div>
+        <Button size="sm" variant="surface" disabled={busy} onClick={check}>
+          {busy ? "Working…" : "Check"}
+        </Button>
+      </div>
+      {!!found?.length && (
+        <>
+          <ul className="divide-y divide-border">
+            {found.map((i) => (
+              <li key={i.id} className="flex items-center gap-3 py-2 text-[13px]">
+                <div className="size-9 shrink-0 rounded-lg bg-tile p-1">
+                  <GarmentImage src={null} alt="" compact className="h-full w-full" />
+                </div>
+                <span className="truncate">{i.name}</span>
+              </li>
+            ))}
+          </ul>
+          <Button size="sm" variant="danger" className="w-full" disabled={busy} onClick={removeAll}>
+            Delete {found.length === 1 ? "this piece" : `these ${found.length} pieces`}
+          </Button>
+        </>
+      )}
     </div>
   );
 }

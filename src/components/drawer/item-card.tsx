@@ -1,13 +1,34 @@
 "use client";
-import { Heart, WashingMachine } from "lucide-react";
+import { Heart, ImageOff, WashingMachine } from "lucide-react";
+import { useState } from "react";
 import { patchItem } from "@/lib/hooks";
 import type { Item } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-export function GarmentImage({ src, alt, className }: { src: string | null; alt: string; className?: string }) {
-  if (!src) return <div className={cn("grid place-items-center text-xs text-faint", className)}>No photo</div>;
-  // eslint-disable-next-line @next/next/no-img-element -- user uploads / data URLs; next/image adds no value here
-  return <img src={src} alt={alt} draggable={false} className={cn("garment object-contain", className)} loading="lazy" />;
+export function GarmentImage({ src, alt, className, compact, onBroken }: { src: string | null; alt: string; className?: string; compact?: boolean; onBroken?: () => void }) {
+  const [failed, setFailed] = useState<string | null>(null);
+  if (!src || failed === src) {
+    return (
+      <div className={cn("flex flex-col items-center justify-center gap-1.5 text-center text-xs text-faint", className)}>
+        <ImageOff className="size-5" />
+        {!compact && (src ? "Photo missing" : "No photo")}
+      </div>
+    );
+  }
+  return (
+    // eslint-disable-next-line @next/next/no-img-element -- user uploads / data URLs; next/image adds no value here
+    <img
+      src={src}
+      alt={alt}
+      draggable={false}
+      className={cn("garment object-contain", className)}
+      loading="lazy"
+      onError={() => {
+        setFailed(src);
+        onBroken?.();
+      }}
+    />
+  );
 }
 
 export function ItemCard({ item, onOpen }: { item: Item; onOpen?: (item: Item) => void }) {

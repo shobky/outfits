@@ -37,6 +37,8 @@ export interface Repo {
 
   /** Stores an image and returns a public URL. */
   uploadImage(data: Blob, ext: "webp" | "png" | "jpg"): Promise<string>;
+  /** Deletes a stored image. Ignores URLs this repo doesn't own (bundled samples, other hosts). */
+  deleteImage(url: string): Promise<void>;
 }
 
 export const isSupabaseConfigured = () =>

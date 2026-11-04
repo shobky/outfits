@@ -107,5 +107,14 @@ export function supabaseRepo(sb: SupabaseClient, userId: string): Repo {
       if (error) throw new Error(error.message);
       return sb.storage.from("wardrobe").getPublicUrl(path).data.publicUrl;
     },
+    async deleteImage(url) {
+      const marker = "/storage/v1/object/public/wardrobe/";
+      const at = url.indexOf(marker);
+      if (at < 0) return;
+      const path = decodeURIComponent(url.slice(at + marker.length).split("?")[0]);
+      if (!path.startsWith(`${userId}/`)) return;
+      const { error } = await sb.storage.from("wardrobe").remove([path]);
+      if (error) throw new Error(error.message);
+    },
   };
 }

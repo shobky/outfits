@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import type { UIMessage } from "ai";
 import type { ChatSession, Item, Outfit, Profile, WishlistItem } from "../types";
@@ -150,6 +150,10 @@ const repo: Repo = {
     const name = `${crypto.randomUUID()}.${ext}`;
     writeFileSync(path.join(UPLOAD_DIR, name), buf);
     return `/api/files/${name}`;
+  },
+  async deleteImage(url) {
+    const m = /^\/api\/files\/([0-9a-f-]{36}\.(?:webp|png|jpg))$/.exec(url);
+    if (m) rmSync(path.join(UPLOAD_DIR, m[1]), { force: true });
   },
 };
 

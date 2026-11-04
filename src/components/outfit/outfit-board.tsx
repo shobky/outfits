@@ -73,7 +73,7 @@ export function OutfitBoard({ items, className, compact }: { items: BoardItem[];
           >
             {it.image_url && (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={it.image_url} alt={it.name} title={it.name} className={cn("garment h-full w-full object-contain", compact && "drop-shadow-sm")} draggable={false} />
+              <img src={it.image_url} alt={it.name} title={it.name} onError={(e) => (e.currentTarget.style.visibility = "hidden")} className={cn("garment h-full w-full object-contain", compact && "drop-shadow-sm")} draggable={false} />
             )}
           </div>
         );

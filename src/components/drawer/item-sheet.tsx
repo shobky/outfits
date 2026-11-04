@@ -4,24 +4,27 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Segmented } from "@/components/ui/segmented";
 import { Sheet } from "@/components/ui/sheet";
 import { deleteItem, patchItem } from "@/lib/hooks";
 import { COLORS, FORMALITY_LABELS, WARMTH_LABELS } from "@/lib/taxonomy";
 import type { Item } from "@/lib/types";
 import { cn, titleCase } from "@/lib/utils";
-import { GarmentImage } from "./item-card";
 import { ItemForm, type Draft } from "./item-form";
+import { ItemPhotos } from "./item-photos";
 
 export function ItemSheet({ item, onClose }: { item: Item | null; onClose: () => void }) {
   // parent remounts this sheet per item (key), so state starts fresh
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<Draft | null>(item);
-  const [view, setView] = useState<"front" | "back">("front");
   const router = useRouter();
 
   if (!item) return null;
-  const back = item.images?.find((i) => i.view === "back");
+  const removeItem = async () => {
+    if (!confirm(`Delete "${item.name}" permanently?`)) return;
+    await deleteItem(item.id);
+    toast("Deleted");
+    onClose();
+  };
   const toggle = (patch: Partial<Item>, msg: string) => patchItem(item.id, patch).then(() => toast(msg));
 
   return (
@@ -48,19 +51,7 @@ export function ItemSheet({ item, onClose }: { item: Item | null; onClose: () =>
         </div>
       ) : (
         <div className="space-y-5 pb-6">
-          <div className="relative grid aspect-square place-items-center rounded-[28px] bg-tile p-[12%]">
-            <GarmentImage
-              key={view}
-              src={view === "back" ? (back?.url ?? item.image_url) : item.image_url}
-              alt={item.name}
-              className="h-full w-full animate-in fade-in zoom-in-95"
-            />
-            {back && (
-              <div className="absolute bottom-3 left-1/2 -translate-x-1/2">
-                <Segmented value={view} onChange={setView} options={[{ value: "front", label: "Front" }, { value: "back", label: "Back" }]} className="glass" />
-              </div>
-            )}
-          </div>
+          <ItemPhotos item={item} onDeleteItem={removeItem} />
 
           <div className="grid grid-cols-4 gap-2">
             <Action icon={Heart} label="Favorite" on={item.is_favorite} onClick={() => toggle({ is_favorite: !item.is_favorite }, item.is_favorite ? "Removed from favorites" : "Added to favorites")} />
@@ -104,12 +95,7 @@ export function ItemSheet({ item, onClose }: { item: Item | null; onClose: () =>
           <Button
             variant="danger"
             className="w-full"
-            onClick={async () => {
-              if (!confirm(`Delete "${item.name}" permanently?`)) return;
-              await deleteItem(item.id);
-              toast("Deleted");
-              onClose();
-            }}
+            onClick={removeItem}
           >
             <Trash2 className="size-4" /> Delete
           </Button>
