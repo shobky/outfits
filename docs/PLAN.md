@@ -20,7 +20,7 @@ Status legend: ✅ done · 🟡 partial · ⬜ todo
 ## Phase 1 — Make it real with your own closet (next)
 1. 🟡 Supabase project, migrations, auth URLs, Vercel project and env vars are done. Still to verify on the live site: sign-in through the Supabase repo, iPhone upload over HTTPS, home-screen install
    - ⬜ Custom SMTP, so sign-in reaches the home-screen app (see `docs/DEPLOY.md` → Email limits)
-2. 🟡 Upload is fixed (HEIC conversion, CPU retry, time limit, a clear reason for every failure, saving never blocked; tests in `tests/e2e/upload.spec.ts`). Item photos can be replaced or deleted, with placeholders for broken ones. ⬜ Upload the real wardrobe; tune the cut-out pipeline on hard cases (dark items on dark bg, knits, sheer fabrics). If edges disappoint → add server provider (see RESEARCH → Background removal), keep the `removeBg()` signature
+2. 🟡 Add flow rebuilt: up to 8 photos at once, processed on the server in the background. AI groups photos by garment, fixes rotation, makes consistent studio shots, fills in details, and auto-adds confident pieces. Everything else waits for review with a retry. Rotate, mirror and "use my photo" on every item. See RESEARCH → Photo → studio shot. ⬜ Upload the real wardrobe and tune the prompt on hard cases on hard cases (dark items on dark bg, knits, sheer fabrics). If edges disappoint → add server provider (see RESEARCH → Background removal), keep the `removeBg()` signature
 3. ⬜ Batch upload UX polish: bulk "save all" when AI confidence is high; duplicate detection
 4. ✅ "Wore it today" on chat and saved outfits → `wear_log` + `wear_count`/`last_worn_at`, counted once per day
 5. 🟡 Chat components done against the Demo stylist: weather card, tappable swaps, side-by-side outfits, product cards that read image and price from the retailer's page. ⬜ Run the eval set (docs/STYLIST.md) on the real model and improve skills/prompt. Not run yet: owner declined the spend for now
@@ -53,6 +53,8 @@ Status legend: ✅ done · 🟡 partial · ⬜ todo
 Suggested trial: 3 garments on Tripo + TRELLIS with a fal.ai key, budget $3.
 
 ## Decisions log
+- 2026-11 — In-browser cut-out replaced by server-side AI studio shots, at the owner's request, about $0.03 per photo. The real photo is always kept.
+- 2026-11 — Auto-add confident pieces rather than review everything, chosen by the owner. Threshold: 0.75.
 - 2026-11 — Going live: `ALLOWED_EMAILS` gates the app, because open sign-in would spend on the owner's API keys.
 - 2026-11 — Local `.data/` held only sample data, so nothing was imported to Supabase. `scripts/import-local.mjs` stays for later.
 - 2026-11 — Renamed to **Outfits** (repo `shobky/outfits`, subdomain `outfits.shobky.com`). Closet tab keeps the name "Drawer".

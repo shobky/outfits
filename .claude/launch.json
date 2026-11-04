@@ -4,9 +4,30 @@
     {
       "name": "outfits-dev-nokey",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["dev"],
+      "runtimeArgs": [
+        "dev"
+      ],
       "port": 3000,
-      "env": { "OPENAI_API_KEY": "" }
+      "env": {
+        "OPENAI_API_KEY": ""
+      }
+    },
+    {
+      "name": "outfits-ai-local",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "exec",
+        "next",
+        "start",
+        "-p",
+        "3100"
+      ],
+      "port": 3100,
+      "env": {
+        "LOCAL_PERSIST": "0",
+        "NEXT_PUBLIC_SUPABASE_URL": "",
+        "NEXT_PUBLIC_SUPABASE_ANON_KEY": ""
+      }
     }
   ]
 }

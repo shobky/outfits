@@ -1,5 +1,8 @@
 import { getRepo, unauthorized, type Repo } from "@/lib/data";
+import { aiEnabled, frameOriginal, restyle } from "@/lib/intake/studio";
 import { removePhoto, setPhoto, type PhotoChange, type SetPhoto } from "@/lib/item-images";
+
+export const maxDuration = 180;
 
 const fail = (e: unknown) => {
   console.error("[item images]", e);
@@ -7,14 +10,14 @@ const fail = (e: unknown) => {
 };
 
 /** Saves the item first: a leftover file is harmless, a dangling image link isn't. */
-async function commit(repo: Repo, id: string, { patch, removed }: PhotoChange) {
+async function commit(repo: Repo, id: string, { patch, removed }: PhotoChange, warning?: string) {
   const item = await repo.updateItem(id, patch);
   const results = await Promise.allSettled(removed.map((url) => repo.deleteImage(url)));
   results.forEach((r) => r.status === "rejected" && console.warn("[item images] file not removed", r.reason));
-  return Response.json(item);
+  return Response.json({ ...item, warning });
 }
 
-/** body: SetPhoto. The files are already uploaded through /api/upload. */
+/** body: SetPhoto where `url` is the raw upload. It's styled and framed here, then stored. */
 export async function POST(req: Request, ctx: RouteContext<"/api/items/[id]/images">) {
   const repo = await getRepo();
   if (!repo) return unauthorized();
@@ -23,7 +26,24 @@ export async function POST(req: Request, ctx: RouteContext<"/api/items/[id]/imag
   try {
     const [item] = await repo.getItems([id]);
     if (!item) return Response.json({ error: "Piece not found" }, { status: 404 });
-    return await commit(repo, id, setPhoto(item, body));
+    const raw = await repo.readImage(body.url);
+    let framed: Buffer;
+    let warning: string | undefined;
+    if (body.view !== "detail" && aiEnabled()) {
+      try {
+        framed = (await restyle(raw, { rotation: 0, view: body.view, facts: [item.name, item.description].filter(Boolean).join(". ") })).data;
+      } catch (e) {
+        console.error("[item images] studio failed", e);
+        warning = "The studio shot failed, so this uses your photo. Try replacing it again.";
+        framed = await frameOriginal(raw);
+      }
+    } else {
+      framed = await frameOriginal(raw);
+    }
+    const url = await repo.uploadImage(new Blob([new Uint8Array(framed)], { type: "image/webp" }), "webp");
+    const change = setPhoto(item, { ...body, url, original_url: body.view === "front" ? body.url : undefined });
+    if (body.view !== "front") change.removed.push(body.url); // the raw upload isn't kept for extras
+    return await commit(repo, id, change, warning);
   } catch (e) {
     return fail(e);
   }

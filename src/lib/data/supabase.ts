@@ -1,7 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { UIMessage } from "ai";
-import type { ChatSession, Item, Outfit, Profile, WishlistItem } from "../types";
+import type { ChatSession, IntakeBatch, IntakeGroup, Item, Outfit, Profile, WishlistItem } from "../types";
 import { filterItems, wearPatch } from "./filters";
 import type { Repo } from "./repo";
 
@@ -127,6 +127,49 @@ export function supabaseRepo(sb: SupabaseClient, userId: string): Repo {
       if (!path.startsWith(`${userId}/`)) return;
       const { error } = await sb.storage.from("wardrobe").remove([path]);
       if (error) throw new Error(error.message);
+    },
+    async readImage(url) {
+      const marker = "/storage/v1/object/public/wardrobe/";
+      const at = url.indexOf(marker);
+      const path = at < 0 ? "" : decodeURIComponent(url.slice(at + marker.length).split("?")[0]);
+      if (!path.startsWith(`${userId}/`)) throw new Error("That photo isn't yours");
+      const { data, error } = await sb.storage.from("wardrobe").download(path);
+      if (error) throw new Error(error.message);
+      return Buffer.from(await data.arrayBuffer());
+    },
+    async createUploadTarget(ext) {
+      const path = `${userId}/${crypto.randomUUID()}.${ext}`;
+      const { data, error } = await sb.storage.from("wardrobe").createSignedUploadUrl(path);
+      if (error) throw new Error(error.message);
+      return { method: "PUT", url: data.signedUrl, publicUrl: sb.storage.from("wardrobe").getPublicUrl(path).data.publicUrl };
+    },
+
+    async listIntake() {
+      const since = new Date(Date.now() - 14 * 864e5).toISOString();
+      const batches = must(await sb.from("intake_batches").select("*").gte("created_at", since).order("created_at", { ascending: false })) as IntakeBatch[];
+      const groups = must(await sb.from("intake_groups").select("*").gte("created_at", since).neq("status", "dismissed").order("created_at", { ascending: false })) as IntakeGroup[];
+      return { batches, groups };
+    },
+    async countIntakePhotosToday() {
+      const since = new Date(Date.now() - 864e5).toISOString();
+      const rows = must(await sb.from("intake_batches").select("photos").gte("created_at", since)) as { photos: string[] }[];
+      return rows.reduce((n, r) => n + r.photos.length, 0);
+    },
+    async createIntakeBatch(photos) {
+      return must(await sb.from("intake_batches").insert({ photos }).select().single()) as IntakeBatch;
+    },
+    async updateIntakeBatch(id, patch) {
+      must(await sb.from("intake_batches").update({ ...patch, updated_at: new Date().toISOString() }).eq("id", id));
+    },
+    async createIntakeGroups(groups) {
+      if (!groups.length) return [];
+      return must(await sb.from("intake_groups").insert(groups).select()) as IntakeGroup[];
+    },
+    async getIntakeGroup(id) {
+      return must(await sb.from("intake_groups").select("*").eq("id", id).maybeSingle()) as IntakeGroup | null;
+    },
+    async updateIntakeGroup(id, patch) {
+      must(await sb.from("intake_groups").update({ ...patch, updated_at: new Date().toISOString() }).eq("id", id));
     },
   };
 }

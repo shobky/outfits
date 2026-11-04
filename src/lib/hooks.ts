@@ -1,6 +1,6 @@
 "use client";
 import useSWR, { mutate as globalMutate } from "swr";
-import type { Item, Outfit, Profile, WishlistItem } from "./types";
+import type { IntakeBatch, IntakeGroup, Item, Outfit, Profile, WishlistItem } from "./types";
 import { api, fetcher } from "./utils";
 
 export function useItems(query = "status=all") {
@@ -32,6 +32,18 @@ export async function markWorn(itemIds: string[], outfitId?: string) {
   const { logged } = await api<{ logged: number }>("/api/wear", "POST", { item_ids: itemIds, date, outfit_id: outfitId ?? null });
   globalMutate((k) => typeof k === "string" && (k.startsWith("/api/items") || k === "/api/outfits"));
   return logged;
+}
+
+export type IntakeData = { batches: IntakeBatch[]; groups: IntakeGroup[] };
+
+/** A piece stuck this long means its server run died, so it can be retried. */
+export const STUCK_AFTER_MS = 6 * 60 * 1000;
+export function isStuck(row: { updated_at: string }) {
+  return Date.now() - new Date(row.updated_at).getTime() > STUCK_AFTER_MS;
+}
+
+export function useIntake(polling: boolean) {
+  return useSWR<IntakeData>("/api/intake", fetcher, { refreshInterval: polling ? 2500 : 0, revalidateOnFocus: true });
 }
 
 export function useOutfits() {

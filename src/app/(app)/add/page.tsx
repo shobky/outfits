@@ -1,4 +1,4 @@
-import { AddView } from "@/components/drawer/add-view";
+import { AddView } from "@/components/intake/add-view";
 
 export const metadata = { title: "Add pieces" };
 

@@ -1,76 +1,59 @@
 import path from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 
+/** Local mode has no AI key, so each photo becomes a piece the owner names. No cost. */
 const fixture = (name: string) => path.join(__dirname, "..", "fixtures", name);
-const MODEL_HOST = "https://staticimgly.com/**";
 
-async function pick(page: Page, name: string) {
+async function pick(page: Page, names: string[]) {
   await page.goto("/add");
   const chooser = page.waitForEvent("filechooser");
   await page.getByRole("button", { name: "Choose photos" }).click();
-  await (await chooser).setFiles(fixture(name));
+  await (await chooser).setFiles(names.map(fixture));
 }
 
-async function saveAs(page: Page, name: string, button = "Add to drawer") {
-  await page.getByPlaceholder("e.g. Grey wool overshirt").fill(name);
-  await page.getByRole("button", { name: button }).click();
-  await expect(page.getByText(new RegExp(`${name}.*added`)).first()).toBeVisible({ timeout: 15_000 });
-}
-
-test.describe("with the cut-out model unreachable", () => {
-  test.beforeEach(({ page }) => page.route(MODEL_HOST, (r) => r.abort()));
-
-  test("JPEG still saves, using the original photo", async ({ page }) => {
-    await pick(page, "tee-phone.jpg");
-    await expect(page.getByText("couldn't remove the background").first()).toBeVisible({ timeout: 45_000 });
-    await saveAs(page, "Fallback tee");
-  });
-
-  test("a real HEIC with a .heic name is converted and saved", async ({ page }) => {
-    await pick(page, "tee-iphone.heic");
-    await expect(page.getByText("couldn't remove the background").first()).toBeVisible({ timeout: 45_000 });
-    await saveAs(page, "Heic tee");
-  });
-
-  test("a damaged HEIC shows the reason and can be saved without a photo", async ({ page }) => {
-    await pick(page, "fake-iphone.heic");
-    await expect(page.getByRole("alert").filter({ hasText: "couldn't convert" })).toBeVisible({ timeout: 30_000 });
-    await expect(page.getByRole("button", { name: "Try again" })).toBeVisible();
-    await saveAs(page, "No photo tee", "Save without photo");
-  });
-
-  test("saving works before the cut-out finishes", async ({ page }) => {
-    await page.unroute(MODEL_HOST);
-    await page.route(MODEL_HOST, () => {}); // never answers
-    await pick(page, "tee-phone.jpg");
-    await expect(page.getByText("Removing background")).toBeVisible({ timeout: 20_000 });
-    await saveAs(page, "Early tee");
-  });
-
-  test("a storage failure is explained and the piece is still saved", async ({ page }) => {
-    await page.route("**/api/upload", (r) => r.fulfill({ status: 502, json: { error: "Storage rejected the image: Bucket not found" } }));
-    await pick(page, "tee-phone.jpg");
-    await expect(page.getByText("couldn't remove the background").first()).toBeVisible({ timeout: 45_000 });
-    await page.getByPlaceholder("e.g. Grey wool overshirt").fill("Offline tee");
-    await page.getByRole("button", { name: "Add to drawer" }).click();
-    await expect(page.getByText(/Offline tee saved.*Bucket not found/)).toBeVisible();
-  });
-
-  test("a failed save keeps the piece on screen with the reason", async ({ page }) => {
-    await page.route("**/api/items", (r) => (r.request().method() === "POST" ? r.fulfill({ status: 500, json: { error: "database down" } }) : r.continue()));
-    await pick(page, "tee-phone.jpg");
-    await expect(page.getByText("couldn't remove the background").first()).toBeVisible({ timeout: 45_000 });
-    await page.getByPlaceholder("e.g. Grey wool overshirt").fill("Lost tee");
-    await page.getByRole("button", { name: "Add to drawer" }).click();
-    await expect(page.getByRole("alert").filter({ hasText: "database down" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Add to drawer" })).toBeEnabled();
-  });
+test("a JPEG becomes a piece in the background and can be added", async ({ page }) => {
+  await pick(page, ["tee-phone.jpg"]);
+  await page.getByRole("button", { name: /Unnamed piece/ }).first().click({ timeout: 30_000 });
+  const sheet = page.getByRole("dialog");
+  await sheet.getByPlaceholder("e.g. Grey wool overshirt").fill("Navy tee");
+  await sheet.getByRole("button", { name: "Add to drawer" }).click();
+  await page.goto("/");
+  await expect(page.getByRole("button", { name: "Navy tee", exact: true })).toBeVisible({ timeout: 15_000 });
 });
 
-test("full pipeline with the real cut-out model", async ({ page }) => {
-  test.setTimeout(330_000);
-  await pick(page, "tee-phone.jpg");
-  await expect(page.getByText("Details weren't filled in automatically")).toBeVisible({ timeout: 300_000 });
-  await expect(page.getByText("couldn't remove the background")).toHaveCount(0);
-  await saveAs(page, "Real tee");
+test("a real HEIC is converted", async ({ page }) => {
+  await pick(page, ["tee-iphone.heic"]);
+  await expect(page.getByRole("button", { name: /Unnamed piece/ }).first()).toBeVisible({ timeout: 45_000 });
+});
+
+test("a damaged HEIC explains why and offers a retry, without blocking anything else", async ({ page }) => {
+  await pick(page, ["fake-iphone.heic", "tee-phone.jpg"]);
+  await expect(page.getByRole("alert").filter({ hasText: "couldn't convert" })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole("button", { name: "Try again" })).toBeVisible();
+  await page.getByRole("button", { name: "Discard" }).click();
+  await expect(page.getByRole("alert").filter({ hasText: "couldn't convert" })).toHaveCount(0);
+});
+
+test("leaving the screen doesn't lose an upload", async ({ page }) => {
+  await pick(page, ["tee-phone.jpg", "tee-phone.jpg"]);
+  await page.getByRole("link", { name: "Outfits", exact: true }).first().click();
+  await expect(page).toHaveURL(/\/outfits/);
+  await expect(page.getByRole("link", { name: /Uploading|Reading|Styling|to check/ })).toBeVisible({ timeout: 15_000 });
+  await page.getByRole("link", { name: /Uploading|Reading|Styling|to check/ }).click();
+  await expect(page.getByRole("button", { name: /Unnamed piece/ }).first()).toBeVisible({ timeout: 30_000 });
+});
+
+test("more than 8 photos: the first 8 go through, and the owner is told", async ({ page }) => {
+  await pick(page, Array(9).fill("tee-iphone.heic").map(() => "tee-phone.jpg"));
+  await expect(page.getByText("Up to 8 photos at a time").first()).toBeVisible();
+});
+
+test("a storage failure is explained, retried, and photos aren't lost", async ({ page }) => {
+  let fail = true;
+  await page.route("**/api/upload", (r) => (fail ? r.fulfill({ status: 502, json: { error: "Bucket not found" } }) : r.continue()));
+  await pick(page, ["tee-phone.jpg"]);
+  await expect(page.getByRole("alert").filter({ hasText: "Bucket not found" })).toBeVisible({ timeout: 20_000 });
+  fail = false;
+  await page.getByRole("button", { name: "Try again" }).click();
+  await expect(page.getByRole("alert").filter({ hasText: "Bucket not found" })).toHaveCount(0, { timeout: 20_000 });
 });

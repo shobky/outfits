@@ -1,7 +1,8 @@
 import path from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 
-const photo = path.join(__dirname, "..", "fixtures", "tee-phone.jpg");
+const fixtures = path.join(__dirname, "..", "fixtures");
+const photo = path.join(fixtures, "tee-phone.jpg");
 
 test.beforeEach(async ({ page }) => {
   await page.route("https://staticimgly.com/**", (r) => r.abort()); // the cut-out falls back fast
@@ -14,10 +15,10 @@ async function open(page: Page, name: string) {
   return page.getByRole("dialog");
 }
 
-async function attach(page: Page, trigger: () => Promise<void>) {
+async function attach(page: Page, trigger: () => Promise<void>, file = photo) {
   const chooser = page.waitForEvent("filechooser");
   await trigger();
-  await (await chooser).setFiles(photo);
+  await (await chooser).setFiles(file);
   await expect(page.getByText("Photo saved").first()).toBeVisible({ timeout: 45_000 });
 }
 
@@ -37,8 +38,10 @@ test("replace the front photo, and add and remove an extra", async ({ page }) =>
   await attach(page, () => sheet.getByRole("button", { name: "Replace front" }).click());
   await expect(front).not.toHaveAttribute("src", before ?? "");
 
-  await attach(page, () => sheet.getByRole("button", { name: "Photo", exact: true }).click());
-  await expect(sheet.getByRole("button", { name: "Show Photo 1 photo" })).toBeVisible();
+  // A different photo: in this memory-only test mode, identical images get identical data URLs.
+  await attach(page, () => sheet.getByRole("button", { name: "Photo", exact: true }).click(), path.join(fixtures, "tee-iphone.heic"));
+  // Waits on the photo itself: the "Photo saved" toast from the step above may still be showing.
+  await expect(sheet.getByRole("button", { name: "Show Photo 1 photo" })).toBeVisible({ timeout: 45_000 });
   await sheet.getByRole("button", { name: "Delete photo 1" }).click();
   await expect(sheet.getByRole("button", { name: "Show Photo 1 photo" })).toHaveCount(0);
 });

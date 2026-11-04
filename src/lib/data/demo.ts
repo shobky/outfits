@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import type { UIMessage } from "ai";
-import type { ChatSession, Item, Outfit, Profile, WishlistItem } from "../types";
+import type { ChatSession, IntakeBatch, IntakeGroup, Item, Outfit, Profile, WishlistItem } from "../types";
 import { filterItems, wearPatch } from "./filters";
 import { DEMO_USER_ID, seedItems, seedOutfits, seedProfile, seedWishlist } from "./demo-seed";
 import type { Repo } from "./repo";
@@ -13,6 +13,8 @@ interface Store {
   wishlist: WishlistItem[];
   profile: Profile;
   chats: Map<string, { session: ChatSession; messages: UIMessage[] }>;
+  intakeBatches: IntakeBatch[];
+  intakeGroups: IntakeGroup[];
 }
 /**
  * Local mode persists to `.data/` (gitignored) so your closet survives restarts
@@ -29,7 +31,7 @@ function load(): Store | null {
   if (!PERSIST || !existsSync(STORE_FILE)) return null;
   try {
     const raw = JSON.parse(readFileSync(STORE_FILE, "utf8")) as Persisted;
-    return { ...raw, items: raw.items.map((i) => ({ ...i, images: i.images ?? [] })), chats: new Map(raw.chats) };
+    return { ...raw, intakeBatches: raw.intakeBatches ?? [], intakeGroups: raw.intakeGroups ?? [], items: raw.items.map((i) => ({ ...i, images: i.images ?? [] })), chats: new Map(raw.chats) };
   } catch (e) {
     console.error("[outfits] could not read .data/store.json — starting fresh", e);
     return null;
@@ -52,6 +54,8 @@ function store(): Store {
     wishlist: process.env.DEMO_SEED === "0" ? [] : seedWishlist(),
     profile: seedProfile(),
     chats: new Map(),
+    intakeBatches: [],
+    intakeGroups: [],
   };
   return g.__outfitsStore;
 }
@@ -166,10 +170,48 @@ const repo: Repo = {
     const m = /^\/api\/files\/([0-9a-f-]{36}\.(?:webp|png|jpg))$/.exec(url);
     if (m) rmSync(path.join(UPLOAD_DIR, m[1]), { force: true });
   },
+  async readImage(url) {
+    const data = /^data:[^;]+;base64,(.+)$/.exec(url);
+    if (data) return Buffer.from(data[1], "base64");
+    const m = /^\/api\/files\/([0-9a-f-]{36}\.(?:webp|png|jpg))$/.exec(url);
+    if (!m) throw new Error("That photo isn't yours");
+    return readFileSync(path.join(UPLOAD_DIR, m[1]));
+  },
+  async createUploadTarget() {
+    return { method: "FORM", url: "/api/upload", publicUrl: null };
+  },
+
+  async listIntake() {
+    const newestFirst = <T extends { created_at: string }>(rows: T[]) => [...rows].sort((a, b) => b.created_at.localeCompare(a.created_at));
+    return { batches: newestFirst(store().intakeBatches), groups: newestFirst(store().intakeGroups.filter((g) => g.status !== "dismissed")) };
+  },
+  async countIntakePhotosToday() {
+    const since = new Date(Date.now() - 864e5).toISOString();
+    return store().intakeBatches.filter((b) => b.created_at >= since).reduce((n, b) => n + b.photos.length, 0);
+  },
+  async createIntakeBatch(photos) {
+    const batch: IntakeBatch = { id: uid(), user_id: DEMO_USER_ID, photos, status: "analyzing", error: null, rejected: [], cost_usd: 0, created_at: ts(), updated_at: ts() };
+    store().intakeBatches.unshift(batch);
+    return batch;
+  },
+  async updateIntakeBatch(id, patch) {
+    patchIn(store().intakeBatches, id, { ...patch, updated_at: ts() });
+  },
+  async createIntakeGroups(groups) {
+    const rows = groups.map((g): IntakeGroup => ({ ...g, id: uid(), user_id: DEMO_USER_ID, created_at: ts(), updated_at: ts() }));
+    store().intakeGroups.push(...rows);
+    return rows;
+  },
+  async getIntakeGroup(id) {
+    return store().intakeGroups.find((g) => g.id === id) ?? null;
+  },
+  async updateIntakeGroup(id, patch) {
+    patchIn(store().intakeGroups, id, { ...patch, updated_at: ts() });
+  },
 };
 
 /** Wrap every mutating method so it writes the store to disk afterwards. */
-const MUTATING = ["createItem", "updateItem", "deleteItem", "logWear", "createOutfit", "updateOutfit", "deleteOutfit", "createWishlist", "updateWishlist", "deleteWishlist", "updateProfile", "saveChat", "deleteChat"] as const;
+const MUTATING = ["createIntakeBatch", "updateIntakeBatch", "createIntakeGroups", "updateIntakeGroup", "createItem", "updateItem", "deleteItem", "logWear", "createOutfit", "updateOutfit", "deleteOutfit", "createWishlist", "updateWishlist", "deleteWishlist", "updateProfile", "saveChat", "deleteChat"] as const;
 for (const k of MUTATING) {
   const fn = repo[k] as (...a: unknown[]) => Promise<unknown>;
   (repo as unknown as Record<string, unknown>)[k] = async (...args: unknown[]) => {

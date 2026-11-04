@@ -1,10 +1,10 @@
 "use client";
-import { ImageOff, Loader2, Plus, RefreshCw, Trash2, Upload } from "lucide-react";
+import { FlipHorizontal2, ImageOff, Loader2, Plus, RefreshCw, RotateCcw, RotateCw, Trash2, Undo2, Upload } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { mutate } from "swr";
 import { Button } from "@/components/ui/button";
-import { preparePhoto, processGarment } from "@/lib/image/process";
+import { preparePhoto } from "@/lib/image/process";
 import { uploadImage } from "@/lib/image/upload";
 import type { SetPhoto } from "@/lib/item-images";
 import type { Item } from "@/lib/types";
@@ -49,26 +49,35 @@ export function ItemPhotos({ item, onDeleteItem }: { item: Item; onDeleteItem: (
 
   const attach = async (file: File) => {
     const { view, replaces } = pending.current;
-    setBusy("Preparing photo…");
+    setBusy("Uploading…");
     try {
-      const body: SetPhoto = { view, replaces, url: "" };
-      if (view === "detail") {
-        body.url = await uploadImage(await preparePhoto(file));
-      } else {
-        const { cutout, original, cutoutProblem } = await processGarment(file, (stage) => setBusy(stage === "removing" ? "Removing background…" : "Preparing photo…"));
-        if (cutoutProblem) toast.warning(cutoutProblem);
-        setBusy("Uploading…");
-        body.url = await uploadImage(cutout);
-        if (view === "front") body.original_url = await uploadImage(original);
-      }
-      await api(`/api/items/${item.id}/images`, "POST", body);
+      const url = await uploadImage(await preparePhoto(file));
+      setBusy(view === "detail" ? "Saving…" : "Styling your photo…");
+      const body: SetPhoto = { view, replaces, url };
+      const saved = await api<Item & { warning?: string }>(`/api/items/${item.id}/images`, "POST", body);
       await refresh();
       setBroken(null);
-      setSelected(view === "front" ? "front" : view === "back" ? "back" : body.url);
-      toast.success("Photo saved");
+      setSelected(view === "front" ? "front" : view === "back" ? "back" : (saved.images.find((i) => i.view === "detail" && !item.images.some((o) => o.url === i.url))?.url ?? "front"));
+      if (saved.warning) toast.warning(saved.warning);
+      else toast.success("Photo saved");
     } catch (e) {
       console.error(e);
       toast.error(`Couldn't save that photo: ${reason(e)}`);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const transform = async (change: { rotate?: 90 | -90; flip?: boolean; useOriginal?: boolean }) => {
+    if (!slide.url) return;
+    setBusy("Updating…");
+    try {
+      const saved = await api<Item>(`/api/items/${item.id}/transform`, "POST", { url: slide.url, ...change });
+      await refresh();
+      setBroken(null);
+      if (slide.view === "detail") setSelected(saved.images.filter((i) => i.view !== "back")[slides.filter((x) => x.view === "detail").indexOf(slide)]?.url ?? "front");
+    } catch (e) {
+      toast.error(`Couldn't update that photo: ${reason(e)}`);
     } finally {
       setBusy(null);
     }
@@ -154,6 +163,25 @@ export function ItemPhotos({ item, onDeleteItem }: { item: Item; onDeleteItem: (
       </div>
 
       {!missing && (
+        <div className="flex items-center justify-center gap-1">
+          <IconAction label="Rotate left" disabled={!!busy} onClick={() => transform({ rotate: -90 })}>
+            <RotateCcw className="size-4" />
+          </IconAction>
+          <IconAction label="Rotate right" disabled={!!busy} onClick={() => transform({ rotate: 90 })}>
+            <RotateCw className="size-4" />
+          </IconAction>
+          <IconAction label="Mirror" disabled={!!busy} onClick={() => transform({ flip: true })}>
+            <FlipHorizontal2 className="size-4" />
+          </IconAction>
+          {slide.view === "front" && item.original_image_url && (
+            <Button size="sm" variant="ghost" disabled={!!busy} onClick={() => transform({ useOriginal: true })}>
+              <Undo2 className="size-3.5" /> Use my photo
+            </Button>
+          )}
+        </div>
+      )}
+
+      {!missing && (
         <div className="flex gap-2">
           <Button size="sm" variant="surface" className="flex-1" disabled={!!busy} onClick={() => choose(slide.view, slide.url)}>
             <RefreshCw className="size-3.5" /> Replace {slide.label.toLowerCase()}
@@ -169,5 +197,13 @@ export function ItemPhotos({ item, onDeleteItem }: { item: Item; onDeleteItem: (
         </Button>
       )}
     </div>
+  );
+}
+
+function IconAction({ label, disabled, onClick, children }: { label: string; disabled: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button type="button" aria-label={label} title={label} disabled={disabled} onClick={onClick} className="grid size-9 place-items-center rounded-full text-muted transition-colors hover:bg-surface-2 hover:text-text disabled:opacity-40">
+      {children}
+    </button>
   );
 }

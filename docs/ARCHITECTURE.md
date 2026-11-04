@@ -5,7 +5,8 @@ Browser (PWA)
  ├─ pages (static shells) ── client views (SWR) ──► /api/* route handlers ──► getRepo() ──► Repo
  │                                                                              ├─ demoRepo (in-memory seed)
  │                                                                              └─ supabaseRepo (RLS, user cookie)
- ├─ Add flow: photo → @imgly bg removal (WASM/WebGPU) → frame → /api/items/analyze (vision) → /api/upload → /api/items
+ ├─ Add flow (lib/intake, components/intake): photo → normalise in browser → direct to storage → /api/intake
+ │    └─ server, after responding: one vision call groups photos → image model per view → frame → item or review
  └─ Stylist: useChat ──► /api/chat ──► streamText(model, instructions, tools, stopWhen: isStepCount(8))
                                          ├─ model: openai(id) | MockLanguageModelV4 (demo)
                                          ├─ tools: src/lib/ai/tools.ts  (repo + Open-Meteo + web_search)

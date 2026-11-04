@@ -137,3 +137,51 @@ export interface ItemFilters {
   include_laundry?: boolean;
   q?: string;
 }
+
+export type IntakeGroupStatus = "queued" | "processing" | "added" | "review" | "failed" | "dismissed";
+
+/** One photo of a piece on its way through the studio. */
+export interface IntakeView {
+  photo_url: string;
+  view: "front" | "back" | "detail";
+  /** Clockwise degrees that make the garment upright. */
+  rotation: number;
+  result_url: string | null;
+  ai: boolean;
+  error: string | null;
+}
+
+/** One upload of up to 8 photos. */
+export interface IntakeBatch {
+  id: string;
+  user_id: string;
+  photos: string[];
+  status: "analyzing" | "processing" | "done" | "failed";
+  error: string | null;
+  rejected: { url: string; reason: string }[];
+  cost_usd: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/** One physical garment found in a batch. */
+export interface IntakeGroup {
+  id: string;
+  batch_id: string;
+  user_id: string;
+  status: IntakeGroupStatus;
+  step: string | null;
+  views: IntakeView[];
+  draft: Pick<ItemInput, "name" | "category" | "subcategory" | "colors" | "pattern" | "material" | "fit" | "seasons" | "occasions" | "formality" | "warmth" | "brand" | "size" | "notes">;
+  description: string | null;
+  facts: string | null;
+  confidence: number;
+  question: string | null;
+  error: string | null;
+  item_id: string | null;
+  cost_usd: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export type NewIntakeGroup = Omit<IntakeGroup, "id" | "user_id" | "created_at" | "updated_at">;

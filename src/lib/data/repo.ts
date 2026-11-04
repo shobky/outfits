@@ -1,5 +1,5 @@
 import type { UIMessage } from "ai";
-import type { ChatSession, Item, ItemFilters, ItemInput, Outfit, Profile, WishlistItem } from "../types";
+import type { ChatSession, IntakeBatch, IntakeGroup, Item, ItemFilters, ItemInput, NewIntakeGroup, Outfit, Profile, WishlistItem } from "../types";
 
 /**
  * Data access layer. Two implementations:
@@ -41,6 +41,18 @@ export interface Repo {
   uploadImage(data: Blob, ext: "webp" | "png" | "jpg"): Promise<string>;
   /** Deletes a stored image. Ignores URLs this repo doesn't own (bundled samples, other hosts). */
   deleteImage(url: string): Promise<void>;
+  /** Reads one of this user's stored images. Refuses anything else, so a URL from a client can't reach other hosts. */
+  readImage(url: string): Promise<Buffer>;
+  /** Where the browser should send a photo: straight to storage when possible. */
+  createUploadTarget(ext: "jpg"): Promise<{ method: "PUT" | "FORM"; url: string; publicUrl: string | null }>;
+
+  listIntake(): Promise<{ batches: IntakeBatch[]; groups: IntakeGroup[] }>;
+  countIntakePhotosToday(): Promise<number>;
+  createIntakeBatch(photos: string[]): Promise<IntakeBatch>;
+  updateIntakeBatch(id: string, patch: Partial<IntakeBatch>): Promise<void>;
+  createIntakeGroups(groups: NewIntakeGroup[]): Promise<IntakeGroup[]>;
+  getIntakeGroup(id: string): Promise<IntakeGroup | null>;
+  updateIntakeGroup(id: string, patch: Partial<IntakeGroup>): Promise<void>;
 }
 
 export const isSupabaseConfigured = () =>
