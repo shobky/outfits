@@ -1,4 +1,5 @@
 import "server-only";
+import { isListedEmail } from "../access";
 import type { Repo } from "../data/repo";
 import { decideStudio, limitsFromEnv, type Decision } from "./limits";
 
@@ -7,7 +8,7 @@ export async function checkStudio(repo: Repo): Promise<Decision> {
   try {
     const limits = limitsFromEnv();
     const [spentToday, used] = await Promise.all([repo.aiSpendToday(), repo.studioShotsUsed()]);
-    return decideStudio({ ...limits, spentToday, used });
+    return decideStudio({ ...limits, spentToday, used, unlimited: isListedEmail(repo.email) });
   } catch (e) {
     console.error("[budget] couldn't read limits", e);
     return { ok: false, note: "We couldn't make a studio shot just now, so this piece uses your photo." };

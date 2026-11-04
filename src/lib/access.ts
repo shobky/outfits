@@ -13,6 +13,11 @@ const allowedList = () =>
 
 export const inviteOnly = () => process.env.INVITE_ONLY === "1";
 
+/** Named in ALLOWED_EMAILS: the owner and anyone they listed by hand. */
+export function isListedEmail(email: string | null | undefined) {
+  return !!email && allowedList().includes(email.toLowerCase());
+}
+
 export function isEmailAllowed(email: string | undefined) {
   const list = allowedList();
   if (email && list.includes(email.toLowerCase())) return true;

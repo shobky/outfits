@@ -34,8 +34,8 @@ export async function proxy(request: NextRequest) {
     login.pathname = "/login";
     return NextResponse.redirect(login);
   }
-  if (data.user && !isPublic && !isInvite && !(await hasAccess(supabase as never, data.user))) {
-    if (path.startsWith("/api/")) return NextResponse.json({ error: "This email doesn't have access" }, { status: 403 });
+  // API routes are checked once, in getRepo, next to the data. Pages are redirected here.
+  if (data.user && !isPublic && !isInvite && !path.startsWith("/api/") && !(await hasAccess(supabase as never, data.user))) {
     const next = request.nextUrl.clone();
     next.pathname = inviteOnly() ? "/invite" : "/login";
     next.search = inviteOnly() ? "" : "?error=denied";

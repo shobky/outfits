@@ -11,13 +11,29 @@ create table public.ai_spend (
 create index ai_spend_user_idx on public.ai_spend (user_id, kind);
 create index ai_spend_created_idx on public.ai_spend (created_at);
 alter table public.ai_spend enable row level security;
+-- Read-only for users. Writes go through record_ai_spend, so nobody can insert a huge cost.
 create policy "own ai_spend read" on public.ai_spend for select using (user_id = auth.uid());
-create policy "own ai_spend insert" on public.ai_spend for insert with check (user_id = auth.uid());
+
+-- One call can't honestly cost more than this, so anything above it is clamped.
+create function public.record_ai_spend(spend_kind text, spend_usd numeric) returns void
+language plpgsql security definer set search_path = '' as $$
+begin
+  if auth.uid() is null then raise exception 'Not signed in'; end if;
+  insert into public.ai_spend (user_id, kind, usd)
+  values (auth.uid(), spend_kind, greatest(0, least(coalesce(spend_usd, 0), 0.5)));
+end $$;
+revoke execute on function public.record_ai_spend(text, numeric) from public, anon;
+grant execute on function public.record_ai_spend(text, numeric) to authenticated;
 
 -- Everyone's total for today, without exposing anyone's rows. Drives the global daily cap.
+-- Each person counts for at most $2, so one account calling the function repeatedly
+-- can't use up the cap and switch studio shots off for everybody.
 create function public.ai_spend_today() returns numeric
 language sql stable security definer set search_path = '' as $$
-  select coalesce(sum(usd), 0) from public.ai_spend where created_at >= date_trunc('day', now());
+  select coalesce(sum(per_user), 0) from (
+    select least(sum(usd), 2) as per_user from public.ai_spend
+    where created_at >= date_trunc('day', now()) group by user_id
+  ) t;
 $$;
 revoke execute on function public.ai_spend_today() from public, anon;
 grant execute on function public.ai_spend_today() to authenticated;
@@ -29,8 +45,9 @@ alter table public.intake_groups add column note text;
 create table public.events (
   id bigint generated always as identity primary key,
   user_id uuid not null default auth.uid() references auth.users on delete cascade,
-  name text not null,
-  props jsonb not null default '{}'::jsonb,
+  -- Same list as src/lib/events.ts. Users can write here directly, so the limits live in the database.
+  name text not null check (name in ('app_open','batch_created','piece_added','chat_sent','outfit_saved','worn_logged','shop_suggestion_tap','product_check')),
+  props jsonb not null default '{}'::jsonb check (octet_length(props::text) <= 512),
   created_at timestamptz not null default now()
 );
 create index events_name_idx on public.events (name, created_at);

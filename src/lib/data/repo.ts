@@ -10,6 +10,7 @@ import type { ChatSession, IntakeBatch, IntakeGroup, Item, ItemFilters, ItemInpu
 export interface Repo {
   mode: "demo" | "supabase";
   userId: string;
+  email: string | null;
 
   listItems(filters?: ItemFilters): Promise<Item[]>;
   getItems(ids: string[]): Promise<Item[]>;

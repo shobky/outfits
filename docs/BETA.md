@@ -25,7 +25,13 @@ Week-2 return of at least 20–25%, and the typical user adds 10+ pieces. These 
 | `AI_DAILY_BUDGET_USD` | 5 | Total for everyone per day. When reached, new pieces use real photos and details wait for the owner to fill in |
 | `AI_STUDIO_ENABLED` | on | `0` turns studio shots off instantly |
 
-Pieces always save. If limits can't be read, spending stops. Limits are checked just before each call, so simultaneous uploads can overshoot slightly. Stylist chat isn't capped yet and its cost is unmeasured: **measure it during the beta**.
+Pieces always save. If limits can't be read, spending stops. Limits are checked just before each call, so simultaneous uploads can overshoot slightly.
+
+Addresses in `ALLOWED_EMAILS` skip the personal allowance but still stop at the daily budget and off switch.
+
+Each person counts for at most $2 toward the daily total, so one account can't use up the cap for everyone. The cost is that heavy use by a listed address is undercounted.
+
+**Decide before inviting anyone: stylist chat has no cap.** A user can send unlimited messages on your key, and its cost is unmeasured. Add a per-user daily message limit first.
 
 ## Invites
 Run in the Supabase SQL editor. One code per person makes it easy to see who came from where:

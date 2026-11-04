@@ -75,6 +75,7 @@ function patchIn<T extends { id: string }>(list: T[], id: string, patch: Partial
 const repo: Repo = {
   mode: "demo",
   userId: DEMO_USER_ID,
+  email: null,
 
   async listItems(f) {
     return filterItems(store().items, f);

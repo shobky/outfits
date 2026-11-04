@@ -7,10 +7,11 @@ export const DEFAULT_DAILY_BUDGET_USD = 5;
 
 export type Decision = { ok: true } | { ok: false; note: string };
 
-export function decideStudio(s: { enabled: boolean; spentToday: number; dailyBudget: number; used: number; allowance: number }): Decision {
+/** `unlimited` skips the personal allowance. The off switch and daily budget still apply to everyone. */
+export function decideStudio(s: { enabled: boolean; spentToday: number; dailyBudget: number; used: number; allowance: number; unlimited?: boolean }): Decision {
   if (!s.enabled) return { ok: false, note: "Studio shots are paused right now, so this piece uses your photo." };
   if (s.spentToday >= s.dailyBudget) return { ok: false, note: "Studio shots have reached today's limit, so this piece uses your photo. Try again tomorrow." };
-  if (s.used >= s.allowance) return { ok: false, note: `You've used your ${s.allowance} free studio shots, so this piece uses your photo.` };
+  if (!s.unlimited && s.used >= s.allowance) return { ok: false, note: `You've used your ${s.allowance} free studio shots, so this piece uses your photo.` };
   return { ok: true };
 }
 

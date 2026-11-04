@@ -16,7 +16,7 @@ export async function getRepo(): Promise<Repo | null> {
   const sb = await createClient();
   const { data } = await sb.auth.getUser();
   if (!data.user || !(await hasAccess(sb as never, data.user))) return null;
-  return supabaseRepo(sb, data.user.id);
+  return supabaseRepo(sb, data.user.id, data.user.email ?? null);
 }
 
 export function unauthorized() {

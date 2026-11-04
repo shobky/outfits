@@ -5,7 +5,6 @@ const fixtures = path.join(__dirname, "..", "fixtures");
 const photo = path.join(fixtures, "tee-phone.jpg");
 
 test.beforeEach(async ({ page }) => {
-  await page.route("https://staticimgly.com/**", (r) => r.abort()); // the cut-out falls back fast
   page.on("dialog", (d) => d.accept());
 });
 

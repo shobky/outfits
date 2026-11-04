@@ -21,6 +21,12 @@ test.describe("studio limits", () => {
   }
 });
 
+test("the owner skips the allowance, but not the off switch or the daily budget", () => {
+  expect(decideStudio({ ...allowed, used: 500, unlimited: true }).ok).toBe(true);
+  expect(decideStudio({ ...allowed, used: 500, unlimited: true, spentToday: 5 }).ok).toBe(false);
+  expect(decideStudio({ ...allowed, unlimited: true, enabled: false }).ok).toBe(false);
+});
+
 test.describe("access", () => {
   const env = { ...process.env };
   test.afterEach(() => {

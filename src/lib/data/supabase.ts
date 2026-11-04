@@ -10,10 +10,11 @@ function must<T>(res: { data: T | null; error: { message: string } | null }): T 
   return res.data as T;
 }
 
-export function supabaseRepo(sb: SupabaseClient, userId: string): Repo {
+export function supabaseRepo(sb: SupabaseClient, userId: string, email: string | null = null): Repo {
   return {
     mode: "supabase",
     userId,
+    email,
 
     // Closets are small (<1–2k rows) so we fetch and filter in memory —
     // keeps demo + real behavior identical. Push filters to SQL if this grows.
@@ -153,7 +154,7 @@ export function supabaseRepo(sb: SupabaseClient, userId: string): Repo {
       return count ?? 0;
     },
     async recordAiSpend(kind, usd) {
-      must(await sb.from("ai_spend").insert({ kind, usd }));
+      must(await sb.rpc("record_ai_spend", { spend_kind: kind, spend_usd: usd }));
     },
     async track(name, props) {
       const { error } = await sb.from("events").insert({ name, props: props ?? {} });
