@@ -65,6 +65,16 @@ function pickOutfit(items: Brief[], dressy: boolean) {
   return pick.map((i) => i.id);
 }
 
+/** Alternatives from the same category, so the demo shows real tappable swaps. */
+function pickSwaps(items: Brief[], ids: string[]) {
+  const available = items.filter((i) => !i.in_laundry && !ids.includes(i.id));
+  return ids.flatMap((id) => {
+    const cat = items.find((i) => i.id === id)?.type.split("/")[0];
+    const alt = available.find((i) => i.type.split("/")[0] === cat);
+    return alt ? [{ replace_item_id: id, with_item_id: alt.id, note: cat === "footwear" ? "if you'll walk a lot" : "for a change of tone" }] : [];
+  }).slice(0, 3);
+}
+
 export function createMockModel() {
   return new MockLanguageModelV4({
     provider: "outfits",
@@ -121,6 +131,8 @@ export function createMockModel() {
         const sw = results.search_wardrobe as { items: Brief[] };
         const w = results.get_weather as { temp_c?: number; condition?: string } | undefined;
         const ids = pickOutfit(sw.items, dressy);
+        const alternative = /options|alternatives|two looks/.test(text);
+        const otherIds = pickOutfit(sw.items, !dressy);
         chunks = [
           ...textChunks(
             "reasoning",
@@ -131,8 +143,9 @@ export function createMockModel() {
             occasion: dressy ? "date" : "casual",
             item_ids: ids,
             why: "Tonal neutrals with one warm layer — textures do the talking, and every piece sits at the same formality.",
-            swap: "Swap the outer layer for just the top if it warms up.",
+            swaps: pickSwaps(sw.items, ids),
           }),
+          ...(alternative ? [toolCall("compose_outfit", { name: dressy ? "Off-duty classic" : "Evening, easy", occasion: dressy ? "casual" : "date", item_ids: otherIds, why: "The same palette, one step in the other direction on formality.", swaps: pickSwaps(sw.items, otherIds) })] : []),
           finish("tool-calls"),
         ];
       } else {

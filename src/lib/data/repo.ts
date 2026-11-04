@@ -16,6 +16,8 @@ export interface Repo {
   createItem(input: ItemInput): Promise<Item>;
   updateItem(id: string, patch: Partial<ItemInput>): Promise<Item>;
   deleteItem(id: string): Promise<void>;
+  /** Records pieces as worn on a date. Pieces already logged that day aren't counted twice. Returns how many were new. */
+  logWear(itemIds: string[], date: string, outfitId: string | null): Promise<number>;
 
   listOutfits(): Promise<Outfit[]>;
   createOutfit(input: Omit<Outfit, "id" | "user_id" | "created_at">): Promise<Outfit>;

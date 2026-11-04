@@ -4,6 +4,7 @@ import type { Repo } from "../data/repo";
 import { CATEGORIES, COLORS, OCCASIONS, SEASONS, slotFor, type Category } from "../taxonomy";
 import type { Item, Profile } from "../types";
 import { geocode, getWeather } from "../weather";
+import { checkProductUrl } from "./product-page";
 import { getSkill, SKILLS } from "./skills";
 
 const categoryEnum = z.enum(Object.keys(CATEGORIES) as [Category, ...Category[]]);
@@ -171,9 +172,19 @@ export function createTools(repo: Repo, profile: Profile) {
         occasion: z.enum(OCCASIONS).optional(),
         item_ids: z.array(z.string()).min(2).max(8),
         why: z.string().describe("1–2 sentences on why it works"),
-        swap: z.string().optional().describe("One optional swap suggestion"),
+        swaps: z
+          .array(
+            z.object({
+              replace_item_id: z.string().describe("A piece in this outfit"),
+              with_item_id: z.string().describe("A wardrobe piece of the same kind to wear instead"),
+              note: z.string().describe("3-6 words on when to pick it, e.g. 'if it rains'"),
+            }),
+          )
+          .max(3)
+          .optional()
+          .describe("Alternatives from the wardrobe. The user can tap to apply them to the board."),
       }),
-      execute: async ({ name, occasion, item_ids, why, swap }) => {
+      execute: async ({ name, occasion, item_ids, why, swaps }) => {
         const items = await repo.getItems(item_ids);
         const missing = item_ids.filter((id) => !items.some((i) => i.id === id));
         const unavailable = items.filter((i) => i.in_laundry || i.status === "archived").map((i) => i.name);
@@ -184,12 +195,19 @@ export function createTools(repo: Repo, profile: Profile) {
           ...(!slots.has("shoes") ? ["no shoes"] : []),
           ...(!slots.has("onepiece") && !(slots.has("top") && slots.has("bottom")) ? ["needs top + bottom"] : []),
         ];
+        const options = await repo.getItems((swaps ?? []).map((x) => x.with_item_id));
+        const usableSwaps = (swaps ?? []).flatMap((x) => {
+          const out = items.find((i) => i.id === x.replace_item_id);
+          const inn = options.find((i) => i.id === x.with_item_id);
+          const ok = out && inn && !inn.in_laundry && inn.status !== "archived" && slotFor(inn.category) === slotFor(out.category) && !item_ids.includes(inn.id);
+          return ok ? [{ replace_id: out.id, replace_name: out.name, with: visual(inn), note: x.note }] : [];
+        });
         const order = ["outer", "top", "onepiece", "bottom", "shoes", "accessory"];
         return {
           name,
           occasion: occasion ?? null,
           why,
-          swap: swap ?? null,
+          swaps: usableSwaps,
           problems,
           items: items.map(visual).sort((a, b) => order.indexOf(a.slot) - order.indexOf(b.slot)),
         };
@@ -198,7 +216,7 @@ export function createTools(repo: Repo, profile: Profile) {
 
     suggest_purchases: tool({
       description:
-        "Save shopping suggestions to the user's Shop tab. Only include url/image_url/price if you actually found them (e.g. via web_search).",
+        "Save shopping suggestions to the user's Shop tab. Only include url/image_url/price if you actually found them (e.g. via web_search). Links are checked: the image and price are read from the retailer's page, and dead links are removed.",
       inputSchema: z.object({
         suggestions: z
           .array(
@@ -221,7 +239,18 @@ export function createTools(repo: Repo, profile: Profile) {
           .min(1)
           .max(6),
       }),
-      execute: async ({ suggestions }) => {
+      execute: async ({ suggestions: requested }) => {
+        const suggestions = await Promise.all(
+          requested.map(async (s) => {
+            if (!s.url) return s;
+            const check = await checkProductUrl(s.url);
+            // A dead link takes its details with it, because they described a page that doesn't exist.
+            if (check.status === "dead") return { ...s, url: undefined, image_url: undefined, price: undefined, currency: undefined, retailer: undefined };
+            if (check.status === "unverified") return s;
+            const f = check.facts;
+            return { ...s, url: check.url, image_url: f.image_url ?? s.image_url, price: f.price ?? s.price, currency: f.price ? (f.currency ?? s.currency) : s.currency, retailer: f.retailer ?? s.retailer };
+          }),
+        );
         const created = await repo.createWishlist(
           suggestions.map((s) => ({
             title: s.title,

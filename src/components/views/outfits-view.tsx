@@ -1,5 +1,5 @@
 "use client";
-import { Heart, Layers, Sparkles, Trash2 } from "lucide-react";
+import { CalendarCheck, Heart, Layers, Sparkles, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { mutate } from "swr";
@@ -7,7 +7,7 @@ import { ProfileLink } from "@/components/app-nav";
 import { OutfitBoard } from "@/components/outfit/outfit-board";
 import { Empty } from "@/components/ui/empty";
 import { PageHeader } from "@/components/ui/page-header";
-import { useOutfits } from "@/lib/hooks";
+import { markWorn, useOutfits } from "@/lib/hooks";
 import { api, cn, titleCase } from "@/lib/utils";
 
 export function OutfitsView() {
@@ -64,6 +64,21 @@ export function OutfitsView() {
                       {unavailable && " · something's in the wash"}
                     </p>
                     </div>
+                    <button
+                      className="grid size-8 shrink-0 place-items-center rounded-full text-muted hover:bg-surface-2"
+                      aria-label="Wore it today"
+                      title="Wore it today"
+                      onClick={async () => {
+                        try {
+                          const logged = await markWorn(items.map((i) => i.id), o.id);
+                          toast.success(logged ? "Logged as worn today" : "Already logged for today");
+                        } catch (e) {
+                          toast.error(`Couldn't log that: ${e instanceof Error ? e.message : String(e)}`);
+                        }
+                      }}
+                    >
+                      <CalendarCheck className="size-4" />
+                    </button>
                     <button
                       className="grid size-8 shrink-0 place-items-center rounded-full text-muted hover:bg-surface-2"
                       aria-label="Favorite"

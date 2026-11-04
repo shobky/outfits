@@ -2,7 +2,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { UIMessage } from "ai";
 import type { ChatSession, Item, Outfit, Profile, WishlistItem } from "../types";
-import { filterItems } from "./filters";
+import { filterItems, wearPatch } from "./filters";
 import type { Repo } from "./repo";
 
 function must<T>(res: { data: T | null; error: { message: string } | null }): T {
@@ -33,6 +33,18 @@ export function supabaseRepo(sb: SupabaseClient, userId: string): Repo {
     },
     async deleteItem(id) {
       must(await sb.from("items").delete().eq("id", id));
+    },
+
+    async logWear(itemIds, date, outfitId) {
+      const items = must(await sb.from("items").select("*").in("id", itemIds)) as Item[];
+      const fresh = items.flatMap((i) => {
+        const patch = wearPatch(i, date);
+        return patch ? [{ id: i.id, patch }] : [];
+      });
+      if (!fresh.length) return 0;
+      must(await sb.from("wear_log").insert({ item_ids: fresh.map((f) => f.id), worn_on: date, outfit_id: outfitId }));
+      for (const f of fresh) must(await sb.from("items").update(f.patch).eq("id", f.id));
+      return fresh.length;
     },
 
     async listOutfits() {

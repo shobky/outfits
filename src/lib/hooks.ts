@@ -25,6 +25,15 @@ export async function deleteItem(id: string) {
   globalMutate((k) => typeof k === "string" && k.startsWith("/api/items"));
 }
 
+/** Logs pieces as worn today, in the user's own time zone. Returns how many were newly logged. */
+export async function markWorn(itemIds: string[], outfitId?: string) {
+  const now = new Date();
+  const date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  const { logged } = await api<{ logged: number }>("/api/wear", "POST", { item_ids: itemIds, date, outfit_id: outfitId ?? null });
+  globalMutate((k) => typeof k === "string" && (k.startsWith("/api/items") || k === "/api/outfits"));
+  return logged;
+}
+
 export function useOutfits() {
   return useSWR<{ outfits: Outfit[]; items: Item[] }>("/api/outfits", fetcher);
 }

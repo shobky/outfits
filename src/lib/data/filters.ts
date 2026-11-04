@@ -23,3 +23,9 @@ export function filterItems(items: Item[], f: ItemFilters = {}): Item[] {
     return true;
   });
 }
+
+/** The item update for wearing it on `date`, or null if that day is already logged. */
+export function wearPatch(item: Pick<Item, "wear_count" | "last_worn_at">, date: string) {
+  if (item.last_worn_at?.slice(0, 10) === date) return null;
+  return { wear_count: item.wear_count + 1, last_worn_at: `${date}T12:00:00.000Z` };
+}

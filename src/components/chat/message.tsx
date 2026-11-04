@@ -6,7 +6,7 @@ import { Streamdown } from "streamdown";
 import type { DrawerUIMessage } from "@/lib/ai/tools";
 import { cn } from "@/lib/utils";
 import { AgentSteps, PROCESS_TOOLS, type StepPart } from "./agent-steps";
-import { ItemStrip, OutfitCard, QuickReplies, SuggestionCards } from "./tool-views";
+import { ItemStrip, OutfitCard, QuickReplies, SuggestionCards, WeatherCard, type OutfitResult, type WeatherResult } from "./tool-views";
 
 type Part = DrawerUIMessage["parts"][number];
 type AnyTool = { type: string; toolCallId: string; state: string; input?: unknown; output?: unknown; errorText?: string };
@@ -15,17 +15,26 @@ type Block =
   | { kind: "steps"; steps: StepPart[] }
   | { kind: "text"; text: string }
   | { kind: "tool"; part: AnyTool; name: string }
+  | { kind: "weather"; weather: WeatherResult }
   | { kind: "file"; url: string; mediaType: string }
   | { kind: "source"; url: string; title?: string };
 
 function toBlocks(parts: Part[], streaming: boolean): Block[] {
   const blocks: Block[] = [];
+  // Weather stays in the steps drawer and also shows as a card right after that group of steps.
+  let waiting: WeatherResult[] = [];
+  const flushWeather = () => {
+    waiting.forEach((weather) => blocks.push({ kind: "weather", weather }));
+    waiting = [];
+  };
   const pushStep = (s: StepPart) => {
     const last = blocks[blocks.length - 1];
     if (last?.kind === "steps") last.steps.push(s);
     else blocks.push({ kind: "steps", steps: [s] });
   };
   for (const p of parts) {
+    const isStep = p.type === "reasoning" || (p.type.startsWith("tool-") && PROCESS_TOOLS.has(p.type.slice(5)));
+    if (!isStep && (p.type !== "text" || p.text)) flushWeather();
     if (p.type === "reasoning") pushStep({ kind: "reasoning", text: p.text, streaming: streaming && p.state === "streaming" });
     else if (p.type === "text") {
       if (p.text) blocks.push({ kind: "text", text: p.text });
@@ -35,11 +44,20 @@ function toBlocks(parts: Part[], streaming: boolean): Block[] {
     else if (p.type.startsWith("tool-")) {
       const t = p as unknown as AnyTool;
       const name = t.type.slice(5);
-      if (PROCESS_TOOLS.has(name)) pushStep({ kind: "tool", name, state: t.state, input: t.input, output: t.output, error: t.errorText });
-      else blocks.push({ kind: "tool", part: t, name });
+      if (PROCESS_TOOLS.has(name)) {
+        pushStep({ kind: "tool", name, state: t.state, input: t.input, output: t.output, error: t.errorText });
+        const w = t.output as WeatherResult | { error: string } | undefined;
+        if (name === "get_weather" && t.state === "output-available" && w && !("error" in w)) waiting.push(w);
+      } else blocks.push({ kind: "tool", part: t, name });
     }
   }
+  flushWeather();
   return blocks;
+}
+
+/** Outfits offered together sit side by side instead of pushing the answer off screen. */
+function isOutfit(b: Block | undefined) {
+  return b?.kind === "tool" && b.name === "compose_outfit";
 }
 
 function CopyButton({ text }: { text: string }) {
@@ -91,9 +109,27 @@ export const Message = memo(function Message({
       <div className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-full bg-accent text-[11px] font-bold text-accent-fg">O</div>
       <div className="min-w-0 flex-1 space-y-3">
         {blocks.map((b, i) => {
+          if (isOutfit(b)) {
+            if (isOutfit(blocks[i - 1])) return null; // already drawn with the first of its group
+            let end = i;
+            while (isOutfit(blocks[end + 1])) end++;
+            const group = blocks.slice(i, end + 1) as Extract<Block, { kind: "tool" }>[];
+            if (group.length === 1) return <ToolBlock key={i} part={group[0].part} name={group[0].name} onAnswer={onAnswer} />;
+            return (
+              <div key={i} className="no-scrollbar -mx-1 flex snap-x snap-mandatory gap-3 overflow-x-auto px-1 pb-1">
+                {group.map((g) => (
+                  <div key={g.part.toolCallId} className="w-[86%] max-w-[420px] shrink-0 snap-start">
+                    <ToolBlock part={g.part} name={g.name} onAnswer={onAnswer} />
+                  </div>
+                ))}
+              </div>
+            );
+          }
           switch (b.kind) {
             case "steps":
               return <AgentSteps key={i} steps={b.steps} active={streaming && i === lastIdx} />;
+            case "weather":
+              return <WeatherCard key={i} weather={b.weather} />;
             case "text":
               return (
                 <Streamdown key={i} plugins={{ code }} isAnimating={streaming && i === lastIdx} className="prose-chat text-[15px] leading-relaxed [&_li]:my-0.5 [&_p]:my-2 [&_strong]:font-semibold">
@@ -141,7 +177,7 @@ function ToolBlock({ part, name, onAnswer }: { part: AnyTool; name: string; onAn
       );
     }
     case "compose_outfit":
-      return ready ? <OutfitCard outfit={part.output as Parameters<typeof OutfitCard>[0]["outfit"]} /> : <Skeleton className="aspect-[4/5] max-w-[420px]" label="Laying out the outfit…" />;
+      return ready ? <OutfitCard outfit={part.output as OutfitResult} /> : <Skeleton className="aspect-[4/5] max-w-[420px]" label="Laying out the outfit…" />;
     case "show_items":
       return ready ? <ItemStrip {...(part.output as Parameters<typeof ItemStrip>[0])} /> : <Skeleton className="h-44 max-w-md" label="Pulling pieces…" />;
     case "suggest_purchases":

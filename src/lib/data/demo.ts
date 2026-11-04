@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node
 import path from "node:path";
 import type { UIMessage } from "ai";
 import type { ChatSession, Item, Outfit, Profile, WishlistItem } from "../types";
-import { filterItems } from "./filters";
+import { filterItems, wearPatch } from "./filters";
 import { DEMO_USER_ID, seedItems, seedOutfits, seedProfile, seedWishlist } from "./demo-seed";
 import type { Repo } from "./repo";
 
@@ -88,6 +88,17 @@ const repo: Repo = {
     store().items = store().items.filter((i) => i.id !== id);
   },
 
+  async logWear(itemIds, date) {
+    let logged = 0;
+    for (const item of store().items.filter((i) => itemIds.includes(i.id))) {
+      const patch = wearPatch(item, date);
+      if (!patch) continue;
+      Object.assign(item, patch);
+      logged++;
+    }
+    return logged;
+  },
+
   async listOutfits() {
     return [...store().outfits].sort((a, b) => b.created_at.localeCompare(a.created_at));
   },
@@ -158,7 +169,7 @@ const repo: Repo = {
 };
 
 /** Wrap every mutating method so it writes the store to disk afterwards. */
-const MUTATING = ["createItem", "updateItem", "deleteItem", "createOutfit", "updateOutfit", "deleteOutfit", "createWishlist", "updateWishlist", "deleteWishlist", "updateProfile", "saveChat", "deleteChat"] as const;
+const MUTATING = ["createItem", "updateItem", "deleteItem", "logWear", "createOutfit", "updateOutfit", "deleteOutfit", "createWishlist", "updateWishlist", "deleteWishlist", "updateProfile", "saveChat", "deleteChat"] as const;
 for (const k of MUTATING) {
   const fn = repo[k] as (...a: unknown[]) => Promise<unknown>;
   (repo as unknown as Record<string, unknown>)[k] = async (...args: unknown[]) => {
