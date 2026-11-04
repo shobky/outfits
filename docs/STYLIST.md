@@ -25,3 +25,5 @@
 Record notes/regressions below.
 
 ## Notes
+- 2026-11 — The eval prompts have **not** been run on the real model. Owner declined the OpenAI spend for now, so skills and taste rules are unchanged and answer quality is unmeasured. Only the workflow lines the new tools need were added to the system prompt.
+- 2026-11 — New components (weather card, swaps, wore it today, product cards) are tested against the Demo stylist only. Whether the real model uses `swaps` well is untested, and so is the product-page check against live retailers, beyond the parser tests.

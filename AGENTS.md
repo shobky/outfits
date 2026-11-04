@@ -25,6 +25,7 @@ Read before working: `docs/PLAN.md` (roadmap + what's next), `docs/ARCHITECTURE.
 - Setup: `cp .env.example .env.local && pnpm install && pnpm dev`
 - `pnpm dev` · `pnpm build` · `pnpm lint` · `npx tsc --noEmit`
 - `node scripts/gen-demo-assets.mjs` (demo SVG garments) · `node scripts/gen-icons.mjs` (PWA icons via Playwright)
+- `pnpm exec playwright test` — end-to-end suite in local mode, free (`tests/e2e/`).
 - Before calling work done: `pnpm lint && npx tsc --noEmit && pnpm build`, then drive the UI (see `.claude/skills/verify-ui/SKILL.md`).
 
 ## Modes (important)

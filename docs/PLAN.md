@@ -15,14 +15,15 @@ Status legend: ✅ done · 🟡 partial · ⬜ todo
 - ✅ 7 curated stylist skills (composition, color, proportion/fit, dress codes, weather, culture, wardrobe gaps)
 - ✅ Outfits tab (saved boards, favorite, delete), Shop tab (suggestions → wishlist → bought), Profile (body, sizes, city, taste)
 - ✅ Supabase magic-link auth + proxy session refresh
-- ⬜ **Deploy**: Supabase project + Vercel + `outfits.shobky.com` (see `docs/DEPLOY.md`)
+- 🟡 **Deploy**: Supabase and Vercel are set up (see `docs/DEPLOY.md`). Sign-in, the domain and iPhone checks are listed under Phase 1
 
 ## Phase 1 — Make it real with your own closet (next)
-1. ⬜ Create Supabase project, run migration, set env on Vercel, deploy to subdomain
-2. ⬜ Upload the real wardrobe; tune the cut-out pipeline on hard cases (dark items on dark bg, knits, sheer fabrics). If edges disappoint → add server provider (see RESEARCH → Background removal), keep the `removeBg()` signature
+1. 🟡 Supabase project, migrations, auth URLs, Vercel project and env vars are done. Still to verify on the live site: sign-in through the Supabase repo, iPhone upload over HTTPS, home-screen install
+   - ⬜ Custom SMTP, so sign-in reaches the home-screen app (see `docs/DEPLOY.md` → Email limits)
+2. 🟡 Upload is fixed (HEIC conversion, CPU retry, time limit, a clear reason for every failure, saving never blocked; tests in `tests/e2e/upload.spec.ts`). Item photos can be replaced or deleted, with placeholders for broken ones. ⬜ Upload the real wardrobe; tune the cut-out pipeline on hard cases (dark items on dark bg, knits, sheer fabrics). If edges disappoint → add server provider (see RESEARCH → Background removal), keep the `removeBg()` signature
 3. ⬜ Batch upload UX polish: bulk "save all" when AI confidence is high; duplicate detection
-4. ⬜ "Wore this today" button on outfits → `wear_log` + `wear_count`/`last_worn_at` (schema ready) so rotation works
-5. ⬜ Stylist eval set (docs/STYLIST.md) + iterate skills/prompt with real model
+4. ✅ "Wore it today" on chat and saved outfits → `wear_log` + `wear_count`/`last_worn_at`, counted once per day
+5. 🟡 Chat components done against the Demo stylist: weather card, tappable swaps, side-by-side outfits, product cards that read image and price from the retailer's page. ⬜ Run the eval set (docs/STYLIST.md) on the real model and improve skills/prompt. Not run yet: owner declined the spend for now
 6. ⬜ Image `items.images` in outfit board: flip to back view on tap
 7. ⬜ Error/empty/offline states pass; PWA install prompt on iOS (add-to-home hint)
 
@@ -36,12 +37,24 @@ Status legend: ✅ done · 🟡 partial · ⬜ todo
 
 ## Phase 3 — Business
 - ⬜ Multi-user hardening: private storage bucket + signed URLs, rate limits, usage caps per user, cost tracking
-- ⬜ 3D item views (image-to-3D for rigid items first: shoes, bags, caps)
+- ⬜ 3D item views from front/back photos. Not started: owner chose not to fund the comparison yet. See "3D options" below
 - ⬜ Affiliate links on suggestions; resale ("list it") flow
 - ⬜ Replace AGPL background-removal lib before closed-source commercial launch
 - ⬜ Native wrappers (Capacitor) if PWA limits bite (camera, push on iOS)
 
+## 3D options (prices checked 2026-11, compare on real garments before choosing)
+| Option | Cost per model | Notes |
+|---|---|---|
+| Tripo multiview | 30 credits textured; $0.01/credit on fal, so about $0.30 | Takes multi-angle photos |
+| Hunyuan3D v2 multi-view (fal) | $0.16 listed; textured is 3x, so about $0.48 | Also **requires a left-side photo** |
+| TRELLIS multi-image (fal) | Not listed (single-image is $0.02) | Takes any list of images |
+| Meshy multi-image | 30 credits textured | Prepaid, no published USD rate |
+
+Suggested trial: 3 garments on Tripo + TRELLIS with a fal.ai key, budget $3.
+
 ## Decisions log
+- 2026-11 — Going live: `ALLOWED_EMAILS` gates the app, because open sign-in would spend on the owner's API keys.
+- 2026-11 — Local `.data/` held only sample data, so nothing was imported to Supabase. `scripts/import-local.mjs` stays for later.
 - 2026-11 — Renamed to **Outfits** (repo `shobky/outfits`, subdomain `outfits.shobky.com`). Closet tab keeps the name "Drawer".
 - 2026-11 — Local mode persists to disk so the app is usable with only an OpenAI key.
 - 2026-11 — Demo mode first-class so UI can be built/tested without keys. Repo interface keeps demo and Supabase identical.

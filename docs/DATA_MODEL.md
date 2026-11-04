@@ -9,7 +9,7 @@ auth.users ─┬─ profiles (1:1)   body, sizes, location (lat/lon for weather
             ├─ wear_log         date + item_ids (+ outfit_id)
             ├─ wishlist_items   suggestions → saved → bought | dismissed
             └─ chats            AI SDK UIMessage[] as jsonb
-storage: wardrobe/{user_id}/{uuid}.webp   (public-read, owner-write)
+storage: wardrobe/{user_id}/{uuid}.webp   (public-read, owner-write; files are removed with their photo or item)
 ```
 
 ## items — the core
