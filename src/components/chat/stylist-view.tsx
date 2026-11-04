@@ -85,7 +85,7 @@ export function StylistView() {
 
   return (
     <div className="flex h-dvh">
-      <aside className={cn("hidden shrink-0 overflow-hidden border-r border-border bg-bg-elevated transition-[width] duration-300 md:block", desktopSidebar ? "w-[280px]" : "w-0 border-r-0")}>
+      <aside className={cn("pt-safe hidden shrink-0 overflow-hidden border-r border-border bg-bg-elevated transition-[width] duration-300 md:block", desktopSidebar ? "w-[280px]" : "w-0 border-r-0")}>
         <div className="h-full w-[280px]">{sidebar}</div>
       </aside>
       <Sheet open={mobileSidebar} onOpenChange={setMobileSidebar} title="Chats" side="left">
@@ -178,7 +178,8 @@ function Conversation({
 
   return (
     <div className="flex min-w-0 flex-1 flex-col">
-      <header className="pt-safe flex h-14 shrink-0 items-center gap-1 px-2 md:h-16 md:px-4">
+      <header className="pt-safe shrink-0 md:px-2">
+        <div className="flex h-14 items-center gap-1 px-2 md:h-16 md:px-2">
         <Link href="/" className="grid size-10 place-items-center rounded-full text-muted hover:bg-surface-2 hover:text-text md:hidden" aria-label="Back to drawer">
           <ArrowLeft className="size-5" />
         </Link>
@@ -192,6 +193,7 @@ function Conversation({
         <button onClick={onNewChat} className="grid size-10 place-items-center rounded-full text-muted hover:bg-surface-2 hover:text-text" aria-label="New chat">
           <Plus className="size-5" />
         </button>
+        </div>
       </header>
 
       <div
@@ -232,7 +234,7 @@ function Conversation({
         </div>
       </div>
 
-      <div className="pb-safe mx-auto w-full max-w-[760px] shrink-0 px-3 pt-2 md:px-4">
+      <div className="mx-auto w-full max-w-[760px] shrink-0 px-3 pb-[max(calc(env(safe-area-inset-bottom)-0.75rem),0px)] pt-2 md:px-4">
         <Composer
           busy={busy}
           onStop={stop}
@@ -242,7 +244,7 @@ function Conversation({
           autoFocus={messages.length === 0}
           onSend={(text, files) => sendMessage({ text, files })}
         />
-        <p className="py-2 text-center text-[11px] text-faint">Outfits styles from what you own. It can make mistakes.</p>
+        <p className="py-1.5 text-center text-[11px] text-faint">Outfits styles from what you own. It can make mistakes.</p>
       </div>
     </div>
   );

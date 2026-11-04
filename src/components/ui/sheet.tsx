@@ -29,7 +29,7 @@ export function Sheet({
             "fixed z-50 flex flex-col bg-bg-elevated text-text shadow-2xl outline-none",
             side === "bottom" &&
               "inset-x-0 bottom-0 max-h-[92dvh] rounded-t-[28px] md:inset-auto md:left-1/2 md:top-1/2 md:max-h-[86dvh] md:w-[min(560px,92vw)] md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-[28px]",
-            side === "left" && "inset-y-0 left-0 w-[86vw] max-w-[320px] rounded-r-[28px]",
+            side === "left" && "pt-safe inset-y-0 left-0 w-[86vw] max-w-[320px] rounded-r-[28px]",
             className,
           )}
         >

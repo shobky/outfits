@@ -131,14 +131,14 @@ export function ItemPhotos({ item, onDeleteItem }: { item: Item; onDeleteItem: (
         )}
       </div>
 
-      <div className="no-scrollbar -mx-1 flex items-center gap-2 overflow-x-auto p-1">
+      <div className="no-scrollbar flex items-center gap-2 overflow-x-auto">
         {slides.map((s) => (
           <button
             key={s.key}
             onClick={() => setSelected(s.key)}
             aria-label={`Show ${s.label} photo`}
             aria-pressed={s.key === slide.key}
-            className={cn("relative size-14 shrink-0 overflow-hidden rounded-xl bg-tile p-1", s.key === slide.key && "ring-2 ring-text")}
+            className={cn("relative size-14 shrink-0 overflow-hidden rounded-xl bg-tile p-1", s.key === slide.key && "ring-2 ring-inset ring-text")}
           >
             <GarmentImage src={s.url} alt="" compact className="h-full w-full" />
           </button>

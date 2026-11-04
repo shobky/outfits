@@ -275,7 +275,7 @@ export function AddView() {
               </div>
               <div className="no-scrollbar flex gap-2 overflow-x-auto">
                 {entries.map((e) => (
-                  <button key={e.id} onClick={() => setActiveId(e.id)} className={cn("relative size-16 shrink-0 overflow-hidden rounded-2xl bg-tile p-1.5", e.id === activeId && "ring-2 ring-text")}>
+                  <button key={e.id} onClick={() => setActiveId(e.id)} className={cn("relative size-16 shrink-0 overflow-hidden rounded-2xl bg-tile p-1.5", e.id === activeId && "ring-2 ring-inset ring-text")}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={e.cutoutUrl ?? e.preview} alt="" className="h-full w-full object-contain" />
                     {e.stage === "saved" && (

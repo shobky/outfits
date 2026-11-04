@@ -59,7 +59,7 @@ export function ColorSwatches({ value, onChange, single }: { value: string[]; on
             onClick={() => onChange(single ? (on ? [] : [name]) : on ? value.filter((v) => v !== name) : [...value, name])}
             className={cn(
               "size-8 rounded-full border border-border-strong transition-transform",
-              on && "scale-110 ring-2 ring-text ring-offset-2 ring-offset-bg-elevated",
+              on && "ring-2 ring-inset ring-text outline-2 outline-offset-[-4px] outline-bg-elevated",
             )}
             style={{ background: hex }}
           />
