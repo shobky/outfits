@@ -1,15 +1,85 @@
 "use client";
 import { ArrowRight, Mail } from "lucide-react";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 
-export default function LoginPage() {
+const URL_ERRORS: Record<string, string> = {
+  auth: "That sign-in link didn't work. Links must be opened in the browser that requested them. Send a new one, or use the code from the email.",
+  denied: "This email doesn't have access to Outfits.",
+};
+
+const field = "h-13 w-full rounded-full border border-border-strong bg-surface px-5 text-[15px] outline-none placeholder:text-faint";
+
+function LoginForm() {
+  const params = useSearchParams();
+  const router = useRouter();
   const [email, setEmail] = useState("");
+  const [code, setCode] = useState("");
   const [sent, setSent] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(URL_ERRORS[params.get("error") ?? ""] ?? null);
   const [loading, setLoading] = useState(false);
 
+  if (sent) {
+    return (
+      <form
+        className="space-y-3"
+        onSubmit={async (e) => {
+          e.preventDefault();
+          setLoading(true);
+          setErr(null);
+          const { error } = await createClient().auth.verifyOtp({ email, token: code.trim(), type: "email" });
+          if (error) {
+            setLoading(false);
+            setErr(error.message);
+            return;
+          }
+          router.replace("/");
+          router.refresh();
+        }}
+      >
+        <div className="flex items-center gap-3 rounded-3xl bg-surface p-5">
+          <Mail className="size-5 shrink-0 text-accent" />
+          <p className="text-sm">
+            Check <b>{email}</b>. Tap the link, or enter the code from the email. Use the code if you&apos;re in the home-screen app.
+          </p>
+        </div>
+        <input value={code} onChange={(e) => setCode(e.target.value)} inputMode="numeric" autoComplete="one-time-code" required placeholder="Code from the email" aria-label="Code from the email" className={field} />
+        <Button size="lg" className="w-full" disabled={loading}>
+          {loading ? "Checking…" : "Sign in"} <ArrowRight className="size-4" />
+        </Button>
+        {err && <p role="alert" className="text-center text-sm text-danger">{err}</p>}
+      </form>
+    );
+  }
+
+  return (
+    <form
+      className="space-y-3"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        setErr(null);
+        const { error } = await createClient().auth.signInWithOtp({
+          email,
+          options: { emailRedirectTo: `${location.origin}/auth/callback` },
+        });
+        setLoading(false);
+        if (error) setErr(error.message);
+        else setSent(true);
+      }}
+    >
+      <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@email.com" className={field} />
+      <Button size="lg" className="w-full" disabled={loading}>
+        {loading ? "Sending…" : "Continue with email"} <ArrowRight className="size-4" />
+      </Button>
+      {err && <p role="alert" className="text-center text-sm text-danger">{err}</p>}
+    </form>
+  );
+}
+
+export default function LoginPage() {
   return (
     <div className="relative flex min-h-dvh flex-col items-center justify-end overflow-hidden px-6 pb-16 md:justify-center">
       <div className="pointer-events-none absolute -top-40 left-1/2 size-[560px] -translate-x-1/2 rounded-full bg-accent/25 blur-[120px]" />
@@ -23,43 +93,9 @@ export default function LoginPage() {
           </h1>
           <p className="text-muted">Snap your clothes. Get outfits from what you already own.</p>
         </div>
-        {sent ? (
-          <div className="flex items-center gap-3 rounded-3xl bg-surface p-5">
-            <Mail className="size-5 text-accent" />
-            <p className="text-sm">
-              Check <b>{email}</b> for a sign-in link.
-            </p>
-          </div>
-        ) : (
-          <form
-            className="space-y-3"
-            onSubmit={async (e) => {
-              e.preventDefault();
-              setLoading(true);
-              setErr(null);
-              const { error } = await createClient().auth.signInWithOtp({
-                email,
-                options: { emailRedirectTo: `${location.origin}/auth/callback` },
-              });
-              setLoading(false);
-              if (error) setErr(error.message);
-              else setSent(true);
-            }}
-          >
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@email.com"
-              className="h-13 w-full rounded-full border border-border-strong bg-surface px-5 text-[15px] outline-none placeholder:text-faint"
-            />
-            <Button size="lg" className="w-full" disabled={loading}>
-              {loading ? "Sending…" : "Continue with email"} <ArrowRight className="size-4" />
-            </Button>
-            {err && <p className="text-center text-sm text-danger">{err}</p>}
-          </form>
-        )}
+        <Suspense>
+          <LoginForm />
+        </Suspense>
       </div>
     </div>
   );

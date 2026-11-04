@@ -1,5 +1,6 @@
 import "server-only";
 import { connection } from "next/server";
+import { isEmailAllowed } from "../access";
 import { demoRepo } from "./demo";
 import { isSupabaseConfigured, type Repo } from "./repo";
 
@@ -14,7 +15,7 @@ export async function getRepo(): Promise<Repo | null> {
   const { supabaseRepo } = await import("./supabase");
   const sb = await createClient();
   const { data } = await sb.auth.getUser();
-  if (!data.user) return null;
+  if (!data.user || !isEmailAllowed(data.user.email)) return null;
   return supabaseRepo(sb, data.user.id);
 }
 

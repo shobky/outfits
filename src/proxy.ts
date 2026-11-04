@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { isEmailAllowed } from "@/lib/access";
 
 /**
  * Refreshes the Supabase session cookie and gates the app behind login.
@@ -30,6 +31,13 @@ export async function proxy(request: NextRequest) {
     if (path.startsWith("/api/")) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     const login = request.nextUrl.clone();
     login.pathname = "/login";
+    return NextResponse.redirect(login);
+  }
+  if (data.user && !isPublic && !isEmailAllowed(data.user.email)) {
+    if (path.startsWith("/api/")) return NextResponse.json({ error: "This email doesn't have access" }, { status: 403 });
+    const login = request.nextUrl.clone();
+    login.pathname = "/login";
+    login.search = "?error=denied";
     return NextResponse.redirect(login);
   }
   return response;

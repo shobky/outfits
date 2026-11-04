@@ -131,7 +131,7 @@ export function ItemPhotos({ item, onDeleteItem }: { item: Item; onDeleteItem: (
         )}
       </div>
 
-      <div className="no-scrollbar flex items-center gap-2 overflow-x-auto">
+      <div className="no-scrollbar -mx-1 flex items-center gap-2 overflow-x-auto p-1">
         {slides.map((s) => (
           <button
             key={s.key}
