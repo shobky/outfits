@@ -17,6 +17,49 @@ export type Stage = "preparing" | "removing" | "framing" | "done";
 
 const OUT = 1200; // output square size
 const PAD = 0.08; // padding around garment
+/** Shared budget for both cut-out attempts. A slow first model download is normal (~100s). */
+const CUTOUT_BUDGET_MS = 4 * 60 * 1000;
+
+/** A photo the browser can't read at all. `message` is written for the user. */
+export class PhotoReadError extends Error {
+  name = "PhotoReadError";
+}
+
+const IMAGE_EXT = /\.(jpe?g|png|webp|gif|avif|bmp|tiff?|heic|heif)$/i;
+const HEIC_BRANDS = new Set(["heic", "heix", "hevc", "hevx", "heim", "heis", "mif1", "msf1"]);
+
+/** Windows browsers report an empty MIME type for HEIC, so the extension counts too. */
+export function isImageFile(f: File) {
+  return f.type.startsWith("image/") || IMAGE_EXT.test(f.name);
+}
+
+/** Checks the file's own header, because names and MIME types from phones are unreliable. */
+async function isHeic(f: Blob) {
+  const head = new Uint8Array(await f.slice(4, 12).arrayBuffer());
+  const text = String.fromCharCode(...head);
+  return text.startsWith("ftyp") && HEIC_BRANDS.has(text.slice(4));
+}
+
+/** Returns a blob this browser can decode, converting HEIC where there's no native support. */
+async function toDecodable(file: File): Promise<Blob> {
+  try {
+    (await toBitmap(file)).close();
+    return file;
+  } catch (decodeError) {
+    if (!(await isHeic(file))) {
+      console.error("Photo decode failed", file.name, file.type, decodeError);
+      throw new PhotoReadError(`We couldn't read "${file.name}". It may be damaged, or a format this browser doesn't support. Try a JPEG or PNG.`);
+    }
+  }
+  try {
+    const { default: heic2any } = await import("heic2any");
+    const out = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.92 });
+    return Array.isArray(out) ? out[0] : out;
+  } catch (e) {
+    console.error("HEIC conversion failed", file.name, e);
+    throw new PhotoReadError(`We couldn't convert the iPhone photo "${file.name}". Try exporting it as a JPEG.`);
+  }
+}
 
 async function toBitmap(src: Blob): Promise<ImageBitmap> {
   return createImageBitmap(src, { imageOrientation: "from-image" } as ImageBitmapOptions);
@@ -42,20 +85,38 @@ export async function downscale(file: Blob, max = 1600): Promise<Blob> {
   return canvasToBlob(c, "image/jpeg", 0.92);
 }
 
-export async function removeBg(img: Blob, onProgress?: (pct: number) => void): Promise<Blob> {
-  const { removeBackground } = await import("@imgly/background-removal");
-  return removeBackground(img, {
-    model: "isnet_fp16",
-    device: "gpu",
-    output: { format: "image/png" },
-    progress: (key, current, total) => {
-      if (key.startsWith("fetch") && total) onProgress?.(Math.round((current / total) * 100));
-    },
+function before<T>(work: Promise<T>, deadline: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout>;
+  const timeout = new Promise<never>((_, rej) => {
+    timer = setTimeout(() => rej(new Error("Background removal timed out")), Math.max(0, deadline - Date.now()));
   });
+  return Promise.race([work, timeout]).finally(() => clearTimeout(timer));
 }
 
-/** Crop to alpha bounds and center on a padded square canvas. */
-export async function frame(cutout: Blob): Promise<Blob> {
+/** Tries WebGPU, then WASM. Throws when both fail or the time budget runs out. */
+export async function removeBg(img: Blob, onProgress?: (pct: number) => void): Promise<Blob> {
+  const deadline = Date.now() + CUTOUT_BUDGET_MS;
+  const { removeBackground } = await import("@imgly/background-removal");
+  const attempt = (device: "gpu" | "cpu") =>
+    removeBackground(img, {
+      model: "isnet_fp16",
+      device,
+      output: { format: "image/png" },
+      progress: (key, current, total) => {
+        if (key.startsWith("fetch") && total) onProgress?.(Math.round((current / total) * 100));
+      },
+    });
+  try {
+    return await before(attempt("gpu"), deadline);
+  } catch (e) {
+    if (Date.now() >= deadline) throw e;
+    console.warn("WebGPU cut-out failed, retrying on CPU", e);
+    return before(attempt("cpu"), deadline);
+  }
+}
+
+/** Crop to alpha bounds and center on a padded square canvas. Null when the image is fully transparent. */
+export async function frame(cutout: Blob): Promise<Blob | null> {
   const bmp = await toBitmap(cutout);
   const src = canvas(bmp.width, bmp.height);
   const sctx = src.getContext("2d", { willReadFrequently: true })!;
@@ -72,7 +133,7 @@ export async function frame(cutout: Blob): Promise<Blob> {
       }
     }
   }
-  if (maxX <= minX || maxY <= minY) return cutout; // nothing detected — keep as is
+  if (maxX <= minX || maxY <= minY) return null;
   const bw = maxX - minX + 1;
   const bh = maxY - minY + 1;
   const inner = OUT * (1 - PAD * 2);
@@ -99,19 +160,46 @@ export async function toAnalysisDataUrl(img: Blob, size = 640): Promise<string> 
   return c.toDataURL("image/jpeg", 0.85);
 }
 
-export async function processGarment(file: File, onStage: (s: Stage, pct?: number) => void) {
+/** Decoded and downscaled, with no cut-out. For detail shots where the background doesn't matter. */
+export async function preparePhoto(file: File): Promise<Blob> {
+  return downscale(await toDecodable(file));
+}
+
+export interface ProcessedGarment {
+  original: Blob;
+  cutout: Blob;
+  /** Set when the background couldn't be removed and `cutout` is the framed original. */
+  cutoutProblem: string | null;
+}
+
+/**
+ * Throws PhotoReadError only if the photo can't be decoded. Every later failure
+ * falls back to the original, so the piece can always be saved.
+ * `onOriginal` fires as soon as a usable image exists, before the slow cut-out.
+ */
+export async function processGarment(
+  file: File,
+  onStage: (s: Stage, pct?: number) => void,
+  onOriginal?: (original: Blob) => void,
+): Promise<ProcessedGarment> {
   onStage("preparing");
-  const small = await downscale(file);
+  const small = await downscale(await toDecodable(file));
+  onOriginal?.(small);
   onStage("removing");
-  let cut: Blob;
+  let cutoutProblem: string | null = null;
+  let cut = small;
   try {
     cut = await removeBg(small, (p) => onStage("removing", p));
   } catch (e) {
     console.warn("Background removal failed, using original", e);
-    cut = small;
+    cutoutProblem = "We couldn't remove the background, so this piece will use your original photo.";
   }
   onStage("framing");
-  const framed = await frame(cut);
+  let framed = await frame(cut);
+  if (!framed) {
+    cutoutProblem = "No garment was found in the cut-out, so this piece will use your original photo.";
+    framed = (await frame(small)) ?? small;
+  }
   onStage("done");
-  return { original: small, cutout: framed };
+  return { original: small, cutout: framed, cutoutProblem };
 }

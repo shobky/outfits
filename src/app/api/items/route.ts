@@ -21,5 +21,10 @@ export async function POST(req: Request) {
   const repo = await getRepo();
   if (!repo) return unauthorized();
   const input = (await req.json()) as ItemInput;
-  return Response.json(await repo.createItem(input));
+  try {
+    return Response.json(await repo.createItem(input));
+  } catch (e) {
+    console.error("[items]", e);
+    return Response.json({ error: e instanceof Error ? e.message : String(e) }, { status: 500 });
+  }
 }

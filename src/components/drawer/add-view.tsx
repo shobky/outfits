@@ -1,5 +1,5 @@
 "use client";
-import { Camera, Check, ImagePlus, Loader2, Sparkles, Trash2 } from "lucide-react";
+import { Camera, Check, ImagePlus, Info, Loader2, RotateCcw, Sparkles, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -7,9 +7,10 @@ import { mutate } from "swr";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import type { Analysis } from "@/app/api/items/analyze/route";
-import { processGarment, toAnalysisDataUrl, type Stage } from "@/lib/image/process";
+import { isImageFile, PhotoReadError, processGarment, toAnalysisDataUrl, type Stage } from "@/lib/image/process";
+import { uploadImage } from "@/lib/image/upload";
 import type { ItemInput } from "@/lib/types";
-import { cn } from "@/lib/utils";
+import { api, cn } from "@/lib/utils";
 import { emptyDraft, ItemForm, type Draft } from "./item-form";
 
 interface Entry {
@@ -26,14 +27,21 @@ interface Entry {
   backBusy?: boolean;
   draft: Draft;
   description: string | null;
+  /** Blocking problem with this photo, shown with a retry. */
+  error?: string;
+  /** Something fell back (cut-out, auto-fill). Saving still works. */
+  notice?: string;
 }
 
-async function upload(blob: Blob) {
-  const fd = new FormData();
-  fd.append("file", blob);
-  const r = await fetch("/api/upload", { method: "POST", body: fd });
-  if (!r.ok) throw new Error("Upload failed");
-  return ((await r.json()) as { url: string }).url;
+const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
+
+/** Applies AI values only to the fields the user hasn't already changed. */
+function mergeAnalysis(current: Draft, analysis: Partial<Draft>): Draft {
+  const out: Record<string, unknown> = { ...current };
+  for (const [k, v] of Object.entries(analysis)) {
+    if (out[k] === emptyDraft[k as keyof Draft]) out[k] = v;
+  }
+  return out as unknown as Draft;
 }
 
 const STAGE_LABEL: Record<string, string> = {
@@ -53,30 +61,61 @@ export function AddView() {
   const router = useRouter();
 
   const update = useCallback((id: string, patch: Partial<Entry>) => setEntries((es) => es.map((e) => (e.id === id ? { ...e, ...patch } : e))), []);
+  /** Background work may finish after the user saved, so it never moves a saved piece back a stage. */
+  const progress = useCallback(
+    (id: string, patch: Partial<Entry>) =>
+      setEntries((es) =>
+        es.map((e) => {
+          if (e.id !== id) return e;
+          const done = e.stage === "saving" || e.stage === "saved";
+          return { ...e, ...patch, stage: done ? e.stage : (patch.stage ?? e.stage) };
+        }),
+      ),
+    [],
+  );
 
-  const run = useCallback(
-    async (e: Entry) => {
+  const analyze = useCallback(
+    async (id: string, cutout: Blob) => {
       try {
-        const { cutout, original } = await processGarment(e.file, (stage, pct) => update(e.id, { stage, pct }));
-        update(e.id, { cutout, original, cutoutUrl: URL.createObjectURL(cutout), stage: "analyzing" });
         const r = await fetch("/api/items/analyze", {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ image: await toAnalysisDataUrl(cutout) }),
         });
-        const { analysis } = (await r.json()) as { analysis: Analysis | null };
-        if (analysis) {
-          const { description, ...rest } = analysis;
-          update(e.id, { draft: { ...emptyDraft, ...rest, colors: rest.colors as Draft["colors"] }, description, stage: "ready" });
-        } else {
-          update(e.id, { stage: "ready" });
-        }
+        const body = (await r.json().catch(() => ({}))) as { analysis?: Analysis | null; reason?: string; error?: string };
+        const analysis = r.ok ? body.analysis : null;
+        if (!analysis) throw new Error(body.reason ?? body.error ?? `Request failed (${r.status})`);
+        const { description, ...rest } = analysis;
+        setEntries((es) => es.map((e) => (e.id === id ? { ...e, draft: mergeAnalysis(e.draft, rest as Partial<Draft>), description } : e)));
+      } catch (err) {
+        console.warn("Auto-fill failed", err);
+        setEntries((es) => es.map((e) => (e.id === id ? { ...e, notice: [e.notice, `Details weren't filled in automatically: ${message(err)}`].filter(Boolean).join(" ") } : e)));
+      }
+      progress(id, { stage: "ready" });
+    },
+    [progress],
+  );
+
+  const run = useCallback(
+    async (e: Entry) => {
+      progress(e.id, { error: undefined, notice: undefined });
+      try {
+        const { cutout, original, cutoutProblem } = await processGarment(
+          e.file,
+          (stage, pct) => progress(e.id, { stage, pct }),
+          (blob) => progress(e.id, { original: blob, preview: URL.createObjectURL(blob) }),
+        );
+        progress(e.id, { cutout, original, cutoutUrl: URL.createObjectURL(cutout), stage: "analyzing", notice: cutoutProblem ?? undefined });
+        if (cutoutProblem) toast.warning(cutoutProblem);
+        await analyze(e.id, cutout);
       } catch (err) {
         console.error(err);
-        update(e.id, { stage: "error" });
+        const text = err instanceof PhotoReadError ? err.message : `Something went wrong processing this photo: ${message(err)}`;
+        progress(e.id, { stage: "error", error: text });
+        toast.error(text);
       }
     },
-    [update],
+    [analyze, progress],
   );
 
   const backRef = useRef<HTMLInputElement>(null);
@@ -85,14 +124,17 @@ export function AddView() {
     try {
       const { cutout } = await processGarment(file, () => {});
       update(id, { back: cutout, backUrl: URL.createObjectURL(cutout), backBusy: false });
-    } catch {
+    } catch (err) {
       update(id, { backBusy: false });
-      toast.error("Couldn't process the back photo");
+      toast.error(err instanceof PhotoReadError ? err.message : `Couldn't process the back photo: ${message(err)}`);
     }
   };
 
   const addFiles = (files: FileList | File[]) => {
-    const list = [...files].filter((f) => f.type.startsWith("image/"));
+    const all = [...files];
+    const list = all.filter(isImageFile);
+    const skipped = all.filter((f) => !isImageFile(f));
+    if (skipped.length) toast.error(`Not a photo, so it was skipped: ${skipped.map((f) => f.name).join(", ")}`);
     const fresh = list.map<Entry>((file) => ({ id: crypto.randomUUID(), file, preview: URL.createObjectURL(file), stage: "preparing", draft: emptyDraft, description: null }));
     setEntries((es) => [...es, ...fresh]);
     if (!activeId && fresh[0]) setActiveId(fresh[0].id);
@@ -101,35 +143,45 @@ export function AddView() {
   };
 
   const save = async (e: Entry) => {
-    if (!e.cutout) return;
     if (!e.draft.name.trim()) return toast.error("Give it a name first");
-    update(e.id, { stage: "saving" });
+    update(e.id, { stage: "saving", error: undefined });
+    // A failed photo upload never loses the piece: it's saved without that image and can be re-uploaded.
+    const failures: string[] = [];
+    const tryUpload = async (blob: Blob | undefined) => {
+      if (!blob) return null;
+      try {
+        return await uploadImage(blob);
+      } catch (err) {
+        failures.push(message(err));
+        return null;
+      }
+    };
+    const [front, original_image_url, back_url] = await Promise.all([tryUpload(e.cutout ?? e.original), e.cutout ? tryUpload(e.original) : Promise.resolve(null), tryUpload(e.back)]);
+    const body: ItemInput = {
+      ...e.draft,
+      image_url: front ?? original_image_url,
+      original_image_url,
+      images: back_url ? [{ url: back_url, view: "back" }] : [],
+      description: e.description,
+      status: "active",
+      in_laundry: false,
+      is_favorite: false,
+    };
     try {
-      const [image_url, original_image_url, back_url] = await Promise.all([
-        upload(e.cutout),
-        e.original ? upload(e.original) : Promise.resolve(null),
-        e.back ? upload(e.back) : Promise.resolve(null),
-      ]);
-      const body: ItemInput = {
-        ...e.draft,
-        image_url,
-        original_image_url,
-        images: back_url ? [{ url: back_url, view: "back" }] : [],
-        description: e.description,
-        status: "active",
-        in_laundry: false,
-        is_favorite: false,
-      };
-      await fetch("/api/items", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
-      update(e.id, { stage: "saved" });
-      mutate((k) => typeof k === "string" && k.startsWith("/api/items"));
-      toast.success(`${e.draft.name} added`);
-      const next = entries.find((x) => x.id !== e.id && x.stage !== "saved");
-      setActiveId(next?.id ?? null);
-    } catch {
-      update(e.id, { stage: "error" });
-      toast.error("Couldn't save — try again");
+      await api("/api/items", "POST", body);
+    } catch (err) {
+      const text = `Couldn't save "${e.draft.name}": ${message(err)}`;
+      update(e.id, { stage: "ready", error: text });
+      toast.error(text);
+      return;
     }
+    update(e.id, { stage: "saved" });
+    mutate((k) => typeof k === "string" && k.startsWith("/api/items"));
+    if (failures.length) toast.warning(`${e.draft.name} saved, but a photo didn't upload: ${failures[0]}. Open the piece to re-upload it.`);
+    else if (!body.image_url) toast.success(`${e.draft.name} added without a photo. Open the piece to add one.`);
+    else toast.success(`${e.draft.name} added`);
+    const next = entries.find((x) => x.id !== e.id && x.stage !== "saved");
+    setActiveId(next?.id ?? null);
   };
 
   const active = entries.find((e) => e.id === activeId);
@@ -139,11 +191,15 @@ export function AddView() {
     <div className="pb-32 lg:pb-12">
       <PageHeader title="Add pieces" right={entries.some((e) => e.stage === "saved") ? <Button size="sm" variant="surface" onClick={() => router.push("/")}>Done</Button> : null} />
       <div className="mx-auto max-w-5xl space-y-5 px-4 md:px-8">
-        <input ref={fileRef} type="file" accept="image/*" multiple hidden onChange={(e) => e.target.files && addFiles(e.target.files)} />
+        <input ref={fileRef} type="file" accept="image/*,.heic,.heif" multiple hidden onChange={(e) => {
+            const picked = [...(e.target.files ?? [])];
+            e.target.value = ""; // lets the same file be picked again after a failure
+            addFiles(picked);
+          }} />
         <input
           ref={backRef}
           type="file"
-          accept="image/*"
+          accept="image/*,.heic,.heif"
           hidden
           onChange={(e) => {
             const f = e.target.files?.[0];
@@ -151,7 +207,11 @@ export function AddView() {
             e.target.value = "";
           }}
         />
-        <input ref={camRef} type="file" accept="image/*" capture="environment" hidden onChange={(e) => e.target.files && addFiles(e.target.files)} />
+        <input ref={camRef} type="file" accept="image/*" capture="environment" hidden onChange={(e) => {
+            const picked = [...(e.target.files ?? [])];
+            e.target.value = ""; // lets the same file be picked again after a failure
+            addFiles(picked);
+          }} />
 
         {!entries.length || !active ? (
           <div
@@ -178,7 +238,7 @@ export function AddView() {
                 <Camera className="size-4" /> Take photo
               </Button>
             </div>
-            <p className="text-xs text-faint">First run downloads the cut-out model (~40MB), then it&apos;s cached.</p>
+            <p className="text-xs text-faint">First run downloads the cut-out model (~40MB) and can take a couple of minutes. You can save before it finishes.</p>
           </div>
         ) : (
           <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
@@ -232,7 +292,21 @@ export function AddView() {
             </div>
 
             <div className="space-y-5">
-              {active.stage === "error" && <p className="rounded-2xl bg-danger/10 p-4 text-sm text-danger">Something went wrong processing this photo. You can still fill the details and save, or remove it.</p>}
+              {active.error && (
+                <div role="alert" className="space-y-3 rounded-2xl bg-danger/10 p-4 text-sm text-danger">
+                  <p>{active.error}</p>
+                  {active.stage === "error" && (
+                    <Button size="sm" variant="surface" onClick={() => run(active)}>
+                      <RotateCcw className="size-3.5" /> Try again
+                    </Button>
+                  )}
+                </div>
+              )}
+              {active.notice && (
+                <p className="flex gap-2 rounded-2xl bg-surface p-4 text-sm text-muted">
+                  <Info className="mt-0.5 size-4 shrink-0" /> {active.notice}
+                </p>
+              )}
               {active.description && (
                 <p className="flex gap-2 rounded-2xl bg-surface p-4 text-sm text-muted">
                   <Sparkles className="mt-0.5 size-4 shrink-0 text-accent" /> {active.description}
@@ -243,8 +317,8 @@ export function AddView() {
                 <Button variant="surface" size="lg" onClick={() => (setEntries((es) => es.filter((x) => x.id !== active.id)), setActiveId(entries.find((x) => x.id !== active.id)?.id ?? null))}>
                   <Trash2 className="size-4" />
                 </Button>
-                <Button size="lg" className="flex-1" disabled={!active.cutout || active.stage === "saving" || active.stage === "saved"} onClick={() => save(active)}>
-                  {active.stage === "saved" ? "Saved" : active.stage === "saving" ? "Saving…" : "Add to drawer"}
+                <Button size="lg" className="flex-1" disabled={active.stage === "preparing" || active.stage === "saving" || active.stage === "saved"} onClick={() => save(active)}>
+                  {active.stage === "saved" ? "Saved" : active.stage === "saving" ? "Saving…" : active.cutout || active.original ? "Add to drawer" : "Save without photo"}
                 </Button>
               </div>
             </div>

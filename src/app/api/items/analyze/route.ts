@@ -33,7 +33,8 @@ export async function POST(req: Request) {
     return Response.json({ analysis: null, reason: "OPENAI_API_KEY not set — fill in details manually." });
   }
 
-  const { output } = await generateText({
+  try {
+    const { output } = await generateText({
     model: openai(process.env.VISION_MODEL || "gpt-5.4-mini"),
     output: Output.object({ schema }),
     messages: [
@@ -49,5 +50,9 @@ export async function POST(req: Request) {
       },
     ],
   });
-  return Response.json({ analysis: output });
+    return Response.json({ analysis: output });
+  } catch (e) {
+    console.error("[analyze]", e);
+    return Response.json({ analysis: null, reason: "The AI service didn't respond. Fill in the details by hand." });
+  }
 }
