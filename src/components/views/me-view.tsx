@@ -1,0 +1,136 @@
+"use client";
+import { CircleCheck, CircleDashed, LogOut } from "lucide-react";
+import { useTheme } from "next-themes";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { toast } from "sonner";
+import { Field, MultiChips } from "@/components/drawer/attribute-picker";
+import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
+import { Segmented } from "@/components/ui/segmented";
+import { useProfile } from "@/lib/hooks";
+import type { Profile } from "@/lib/types";
+import { api } from "@/lib/utils";
+
+const input = "h-11 w-full rounded-2xl border border-border bg-surface px-4 text-[15px] outline-none placeholder:text-faint focus:border-border-strong";
+const STYLE_OPTIONS = ["minimal", "smart casual", "classic", "streetwear", "old money", "workwear", "scandi", "sporty", "earth tones", "monochrome", "preppy", "techwear"];
+const list = (s: string) => s.split(",").map((x) => x.trim()).filter(Boolean);
+
+export function MeView() {
+  const { data, mutate } = useProfile();
+  if (!data) return <PageHeader title="Profile" />;
+  return <ProfileForm data={data} onSaved={() => mutate()} />;
+}
+
+function ProfileForm({ data, onSaved }: { data: NonNullable<ReturnType<typeof useProfile>["data"]>; onSaved: () => Promise<unknown> | void }) {
+  const [p, setP] = useState<Profile>(data.profile);
+  const { theme, setTheme } = useTheme();
+  const router = useRouter();
+  const set = <K extends keyof Profile>(k: K, v: Profile[K]) => setP({ ...p, [k]: v });
+
+  return (
+    <div className="pb-32 lg:pb-12">
+      <PageHeader title="Profile" />
+      <div className="mx-auto max-w-xl space-y-6 px-4">
+        <div className="grid grid-cols-2 gap-2">
+          <Status ok={data.supabase} label={data.supabase ? "Synced (Supabase)" : "Demo data (in memory)"} />
+          <Status ok={data.ai} label={data.ai ? "AI connected" : "AI in demo mode"} />
+        </div>
+
+        <Field label="Appearance">
+          <Segmented value={(theme as "dark" | "light") ?? "dark"} onChange={setTheme} options={[{ value: "dark", label: "Dark" }, { value: "light", label: "Light" }]} />
+        </Field>
+
+        <section className="space-y-5 rounded-[28px] bg-surface p-5">
+          <h2 className="font-semibold tracking-tight">About you</h2>
+          <p className="-mt-3 text-[13px] text-muted">The stylist uses this for fit, sizing and color advice. You can also just tell it in chat.</p>
+          <Field label="Name">
+            <input className={input} value={p.display_name ?? ""} onChange={(e) => set("display_name", e.target.value)} />
+          </Field>
+          <Field label="I shop">
+            <MultiChips single options={["menswear", "womenswear", "both"] as const} value={[p.menswear]} onChange={([v]) => set("menswear", v)} />
+          </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Height (cm)">
+              <input className={input} inputMode="numeric" value={p.height_cm ?? ""} onChange={(e) => set("height_cm", e.target.value ? Number(e.target.value) : null)} />
+            </Field>
+            <Field label="Weight (kg)">
+              <input className={input} inputMode="numeric" value={p.weight_kg ?? ""} onChange={(e) => set("weight_kg", e.target.value ? Number(e.target.value) : null)} />
+            </Field>
+          </div>
+          <Field label="Build">
+            <input className={input} placeholder="slim, athletic, broad shoulders…" value={p.build ?? ""} onChange={(e) => set("build", e.target.value || null)} />
+          </Field>
+          <div className="grid grid-cols-2 gap-3">
+            {(["top", "waist", "inseam", "shoe_eu"] as const).map((k) => (
+              <Field key={k} label={k === "shoe_eu" ? "Shoe (EU)" : `${k[0].toUpperCase()}${k.slice(1)} size`}>
+                <input className={input} value={p.sizes[k] ?? ""} onChange={(e) => set("sizes", { ...p.sizes, [k]: e.target.value })} />
+              </Field>
+            ))}
+          </div>
+          <Field label="Home city">
+            <input className={input} placeholder="For weather" value={p.home_city ?? ""} onChange={(e) => set("home_city", e.target.value || null)} />
+          </Field>
+        </section>
+
+        <section className="space-y-5 rounded-[28px] bg-surface p-5">
+          <h2 className="font-semibold tracking-tight">Taste</h2>
+          <Field label="Style">
+            <MultiChips options={STYLE_OPTIONS} value={p.style_keywords} onChange={(v) => set("style_keywords", v)} />
+          </Field>
+          <Field label="Favorite colors (comma separated)">
+            <input className={input} value={p.favorite_colors.join(", ")} onChange={(e) => set("favorite_colors", list(e.target.value))} />
+          </Field>
+          <Field label="Avoid (colors, fits, items)">
+            <input className={input} value={p.avoid.join(", ")} onChange={(e) => set("avoid", list(e.target.value))} />
+          </Field>
+          <Field label="Budget">
+            <MultiChips single options={["low", "mid", "high"] as const} value={p.budget ? [p.budget] : []} onChange={([v]) => set("budget", v)} />
+          </Field>
+          <Field label="Currency">
+            <input className={input} value={p.currency} onChange={(e) => set("currency", e.target.value.toUpperCase())} />
+          </Field>
+          <Field label="Anything else the stylist should know">
+            <textarea className={`${input} h-auto min-h-24 py-3`} value={p.notes ?? ""} onChange={(e) => set("notes", e.target.value || null)} />
+          </Field>
+        </section>
+
+        <Button
+          size="lg"
+          className="w-full"
+          onClick={async () => {
+            await api("/api/profile", "PATCH", p);
+            await onSaved();
+            toast.success("Profile saved");
+          }}
+        >
+          Save profile
+        </Button>
+
+        {data.supabase && (
+          <Button
+            variant="ghost"
+            className="w-full text-muted"
+            onClick={async () => {
+              const { createClient } = await import("@/lib/supabase/client");
+              await createClient().auth.signOut();
+              router.replace("/login");
+              router.refresh();
+            }}
+          >
+            <LogOut className="size-4" /> Sign out
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function Status({ ok, label }: { ok: boolean; label: string }) {
+  return (
+    <div className="flex items-center gap-2 rounded-2xl bg-surface px-3 py-2.5 text-[12.5px] font-medium">
+      {ok ? <CircleCheck className="size-4 text-accent" /> : <CircleDashed className="size-4 text-amber-400" />}
+      {label}
+    </div>
+  );
+}

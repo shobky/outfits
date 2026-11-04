@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600">
+<defs>
+<linearGradient id="g11" x1="0" y1="0" x2="0.4" y2="1"><stop offset="0" stop-color="#485169"/><stop offset="1" stop-color="#232d43"/></linearGradient>
+<pattern id="t11" width="6" height="6" patternUnits="userSpaceOnUse"><rect width="6" height="6" fill="none"/><path d="M0 6L6 0" stroke="#1d2538" stroke-opacity=".08"/></pattern>
+</defs>
+<path d="M196 150 L404 150 L438 388 L316 398 L300 262 L284 398 L162 388 Z" fill="url(#g11)" stroke="#1e263a" stroke-width="2.5" stroke-linejoin="round"/><path d="M196 150 L404 150 L438 388 L316 398 L300 262 L284 398 L162 388 Z" fill="url(#t11)"/><rect x="196" y="150" width="208" height="28" fill="#1e263a" fill-opacity=".25"/><path d="M300 178 L300 256" fill="none" stroke="#192030" stroke-width="3" stroke-opacity="0.45" stroke-linecap="round" stroke-linejoin="round"/><path d="M300 164 L280 150 M300 164 L320 150" fill="none" stroke="#192030" stroke-width="2" stroke-opacity="0.45" stroke-linecap="round" stroke-linejoin="round"/><path d="M170 370 L284 380 M430 370 L316 380" fill="none" stroke="#192030" stroke-width="2" stroke-opacity="0.3" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600">
+<defs>
+<linearGradient id="g14" x1="0" y1="0" x2="0.4" y2="1"><stop offset="0" stop-color="#3e3e40"/><stop offset="1" stop-color="#1a1a1c"/></linearGradient>
+<pattern id="t14" width="6" height="6" patternUnits="userSpaceOnUse"><rect width="6" height="6" fill="none"/><path d="M0 6L6 0" stroke="#161617" stroke-opacity=".08"/></pattern>
+</defs>
+<g transform="translate(40 0)">
+<path d="M120 90 L250 90 L254 330 Q330 350 360 400 L362 470 L80 470 L84 420 Q104 380 110 330 Z" fill="url(#g14)" stroke="#161618" stroke-width="2.5"/>
+<path d="M80 458 L364 458 L364 490 L80 490 Z" fill="#131314"/>
+<path d="M120 150 Q150 200 120 260 L114 300 L250 300 L254 150 Q220 200 250 150" fill="#131314" fill-opacity=".35"/>
+</g><g transform="translate(190 20)">
+<path d="M120 90 L250 90 L254 330 Q330 350 360 400 L362 470 L80 470 L84 420 Q104 380 110 330 Z" fill="url(#g14)" stroke="#161618" stroke-width="2.5"/>
+<path d="M80 458 L364 458 L364 490 L80 490 Z" fill="#131314"/>
+<path d="M120 150 Q150 200 120 260 L114 300 L250 300 L254 150 Q220 200 250 150" fill="#131314" fill-opacity=".35"/>
+</g>
+</svg>

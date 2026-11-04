@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600">
+<defs>
+<linearGradient id="g12" x1="0" y1="0" x2="0.4" y2="1"><stop offset="0" stop-color="#f6f6f4"/><stop offset="1" stop-color="#cececb"/></linearGradient>
+<pattern id="t12" width="6" height="6" patternUnits="userSpaceOnUse"><rect width="6" height="6" fill="none"/><path d="M0 6L6 0" stroke="#acaca9" stroke-opacity=".08"/></pattern>
+</defs>
+<g transform="translate(0 0)">
+<path d="M70 330 Q72 250 150 236 L240 222 Q300 214 330 250 L420 300 Q520 318 528 360 L528 382 Q300 396 70 382 Z" fill="url(#g12)" stroke="#b0b0ae" stroke-width="2.5"/>
+<path d="M66 372 L532 372 L530 398 Q300 414 68 402 Z" fill="#d9d9d4" stroke="#b9b9b2" stroke-width="2"/>
+<path d="M190 240 L250 300 M215 234 L272 292 M240 228 L294 284" fill="none" stroke="#939391" stroke-width="3" stroke-opacity="0.45" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M90 340 Q200 330 300 340 Q400 350 520 356" fill="none" stroke="#939391" stroke-width="2" stroke-opacity="0.25" stroke-linecap="round" stroke-linejoin="round"/>
+</g><g transform="translate(40 70)">
+<path d="M70 330 Q72 250 150 236 L240 222 Q300 214 330 250 L420 300 Q520 318 528 360 L528 382 Q300 396 70 382 Z" fill="url(#g12)" stroke="#b0b0ae" stroke-width="2.5"/>
+<path d="M66 372 L532 372 L530 398 Q300 414 68 402 Z" fill="#d9d9d4" stroke="#b9b9b2" stroke-width="2"/>
+<path d="M190 240 L250 300 M215 234 L272 292 M240 228 L294 284" fill="none" stroke="#939391" stroke-width="3" stroke-opacity="0.45" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M90 340 Q200 330 300 340 Q400 350 520 356" fill="none" stroke="#939391" stroke-width="2" stroke-opacity="0.25" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+</svg>

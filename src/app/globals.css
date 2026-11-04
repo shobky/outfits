@@ -1,26 +1,151 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "streamdown/styles.css";
+@source "../../node_modules/streamdown/dist/*.js";
+@source "../../node_modules/@streamdown/code/dist/*.js";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * Design tokens — see docs/DESIGN.md.
+ * Light = soft gallery grey (ref: "Closet" mock). Dark = deep slate/charcoal (default).
+ * One accent (lime) reserved for AI / active states.
+ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #efefed;
+  --bg-elevated: #f7f7f5;
+  --surface: #ffffff;
+  --surface-2: #f3f3f1;
+  --tile: #ececea; /* behind garment cut-outs */
+  --border: rgba(17, 17, 17, 0.08);
+  --border-strong: rgba(17, 17, 17, 0.14);
+  --text: #141414;
+  --text-muted: #6b6b6b;
+  --text-faint: #9a9a9a;
+  --primary: #151515; /* solid pills / CTAs */
+  --primary-fg: #ffffff;
+  --accent: #c8f05a;
+  --accent-fg: #101400;
+  --danger: #e5484d;
+  --heart: #ff3b30;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 8px 24px rgba(0, 0, 0, 0.06);
+  --glass: rgba(255, 255, 255, 0.72);
+  --garment-shadow: drop-shadow(0 10px 14px rgba(0, 0, 0, 0.16)) drop-shadow(0 2px 3px rgba(0, 0, 0, 0.08));
+}
+
+.dark {
+  --bg: #0e1014;
+  --bg-elevated: #13161b;
+  --surface: #171a20;
+  --surface-2: #1d2128;
+  --tile: #20242b;
+  --border: rgba(255, 255, 255, 0.07);
+  --border-strong: rgba(255, 255, 255, 0.13);
+  --text: #f1f2f4;
+  --text-muted: #9aa0aa;
+  --text-faint: #646a74;
+  --primary: #f1f2f4;
+  --primary-fg: #0e1014;
+  --accent: #c8f05a;
+  --accent-fg: #101400;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 32px rgba(0, 0, 0, 0.35);
+  --glass: rgba(23, 26, 32, 0.72);
+  --garment-shadow: drop-shadow(0 12px 16px rgba(0, 0, 0, 0.45)) drop-shadow(0 2px 3px rgba(0, 0, 0, 0.3));
+}
+
+
+/* shadcn-style aliases consumed by Streamdown */
+:root, .dark {
+  --background: var(--bg);
+  --foreground: var(--text);
+  --card: var(--surface);
+  --card-foreground: var(--text);
+  --muted: var(--surface-2);
+  --muted-foreground: var(--text-muted);
+  --input: var(--border-strong);
+  --primary-foreground: var(--primary-fg);
+  --sidebar: var(--surface);
+  --radius: 1rem;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-bg: var(--bg);
+  --color-bg-elevated: var(--bg-elevated);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-tile: var(--tile);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-text: var(--text);
+  --color-muted: var(--text-muted);
+  --color-faint: var(--text-faint);
+  --color-primary: var(--primary);
+  --color-primary-fg: var(--primary-fg);
+  --color-accent: var(--accent);
+  --color-accent-fg: var(--accent-fg);
+  --color-danger: var(--danger);
+  --color-heart: var(--heart);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --shadow-soft: var(--shadow);
+  --radius-4xl: 2rem;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--accent-fg);
+}
+
+.garment {
+  filter: var(--garment-shadow);
+}
+
+.glass {
+  background: var(--glass);
+  backdrop-filter: saturate(1.6) blur(18px);
+  -webkit-backdrop-filter: saturate(1.6) blur(18px);
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.pb-safe {
+  padding-bottom: max(env(safe-area-inset-bottom), 0.75rem);
+}
+.pt-safe {
+  padding-top: env(safe-area-inset-top);
+}
+
+/* Streamdown code blocks inherit our surfaces */
+.prose-chat pre {
+  border-radius: 1rem;
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.shimmer-text {
+  background: linear-gradient(90deg, var(--text-muted) 0%, var(--text) 40%, var(--text-muted) 80%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: shimmer 2.2s linear infinite;
 }
