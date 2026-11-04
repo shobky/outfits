@@ -1,4 +1,5 @@
 import { getRepo, isSupabaseConfigured, unauthorized } from "@/lib/data";
+import { PERSIST } from "@/lib/data/demo";
 import { geocode } from "@/lib/weather";
 import type { Profile } from "@/lib/types";
 
@@ -10,6 +11,7 @@ export async function GET() {
     mode: repo.mode,
     ai: Boolean(process.env.OPENAI_API_KEY),
     supabase: isSupabaseConfigured(),
+    local: !isSupabaseConfigured() && PERSIST,
   });
 }
 

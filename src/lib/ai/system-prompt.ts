@@ -8,7 +8,7 @@ export function buildInstructions(opts: { profile: Profile; itemCount: number; n
   const local = now.toLocaleString("en-GB", { timeZone: tz, weekday: "long", year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" });
   const season = seasonFor(now, profile.latitude);
 
-  return `You are Drawer — a personal stylist with genuinely great taste, working only with the clothes the user actually owns.
+  return `You are the Outfits stylist — a personal stylist with genuinely great taste, working only with the clothes the user actually owns.
 
 ## Who you are
 - Warm, confident, concise. Talk like a friend who works in fashion: specific, never generic, never preachy.

@@ -1,3 +1,5 @@
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import path from "node:path";
 import type { UIMessage } from "ai";
 import type { ChatSession, Item, Outfit, Profile, WishlistItem } from "../types";
 import { filterItems } from "./filters";
@@ -12,16 +14,46 @@ interface Store {
   profile: Profile;
   chats: Map<string, { session: ChatSession; messages: UIMessage[] }>;
 }
-const g = globalThis as unknown as { __drawerDemo?: Store };
+/**
+ * Local mode persists to `.data/` (gitignored) so your closet survives restarts
+ * on your machine. Disabled on Vercel (read-only FS) or with LOCAL_PERSIST=0.
+ */
+export const PERSIST = !process.env.VERCEL && process.env.LOCAL_PERSIST !== "0";
+export const DATA_DIR = path.join(process.cwd(), ".data");
+export const UPLOAD_DIR = path.join(DATA_DIR, "uploads");
+const STORE_FILE = path.join(DATA_DIR, "store.json");
+
+type Persisted = Omit<Store, "chats"> & { chats: [string, { session: ChatSession; messages: UIMessage[] }][] };
+
+function load(): Store | null {
+  if (!PERSIST || !existsSync(STORE_FILE)) return null;
+  try {
+    const raw = JSON.parse(readFileSync(STORE_FILE, "utf8")) as Persisted;
+    return { ...raw, items: raw.items.map((i) => ({ ...i, images: i.images ?? [] })), chats: new Map(raw.chats) };
+  } catch (e) {
+    console.error("[outfits] could not read .data/store.json — starting fresh", e);
+    return null;
+  }
+}
+
+function save() {
+  if (!PERSIST) return;
+  const s = store();
+  mkdirSync(DATA_DIR, { recursive: true });
+  const data: Persisted = { ...s, chats: [...s.chats.entries()] };
+  writeFileSync(STORE_FILE, JSON.stringify(data, null, 1));
+}
+
+const g = globalThis as unknown as { __outfitsStore?: Store };
 function store(): Store {
-  g.__drawerDemo ??= {
-    items: seedItems(),
-    outfits: seedOutfits(),
-    wishlist: seedWishlist(),
+  g.__outfitsStore ??= load() ?? {
+    items: process.env.DEMO_SEED === "0" ? [] : seedItems(),
+    outfits: process.env.DEMO_SEED === "0" ? [] : seedOutfits(),
+    wishlist: process.env.DEMO_SEED === "0" ? [] : seedWishlist(),
     profile: seedProfile(),
     chats: new Map(),
   };
-  return g.__drawerDemo;
+  return g.__outfitsStore;
 }
 
 const uid = () => crypto.randomUUID();
@@ -34,7 +66,7 @@ function patchIn<T extends { id: string }>(list: T[], id: string, patch: Partial
   return list[i];
 }
 
-export const demoRepo: Repo = {
+const repo: Repo = {
   mode: "demo",
   userId: DEMO_USER_ID,
 
@@ -111,9 +143,25 @@ export const demoRepo: Repo = {
     store().chats.delete(id);
   },
 
-  async uploadImage(data) {
-    // Demo mode: keep the image inline as a data URL.
+  async uploadImage(data, ext) {
     const buf = Buffer.from(await data.arrayBuffer());
-    return `data:${data.type || "image/webp"};base64,${buf.toString("base64")}`;
+    if (!PERSIST) return `data:${data.type || "image/webp"};base64,${buf.toString("base64")}`;
+    mkdirSync(UPLOAD_DIR, { recursive: true });
+    const name = `${crypto.randomUUID()}.${ext}`;
+    writeFileSync(path.join(UPLOAD_DIR, name), buf);
+    return `/api/files/${name}`;
   },
 };
+
+/** Wrap every mutating method so it writes the store to disk afterwards. */
+const MUTATING = ["createItem", "updateItem", "deleteItem", "createOutfit", "updateOutfit", "deleteOutfit", "createWishlist", "updateWishlist", "deleteWishlist", "updateProfile", "saveChat", "deleteChat"] as const;
+for (const k of MUTATING) {
+  const fn = repo[k] as (...a: unknown[]) => Promise<unknown>;
+  (repo as unknown as Record<string, unknown>)[k] = async (...args: unknown[]) => {
+    const r = await fn(...args);
+    save();
+    return r;
+  };
+}
+
+export const demoRepo = repo;

@@ -1,4 +1,4 @@
-# Drawer — plan & roadmap
+# Outfits — plan & roadmap
 
 **Vision:** the feeling of opening a beautifully organised wardrobe, plus a friend with great taste who knows every piece you own. Realistic (your real clothes, real weather, real products), minimal, calm.
 
@@ -7,7 +7,7 @@ Status legend: ✅ done · 🟡 partial · ⬜ todo
 ## Phase 0 — Prototype (this commit)
 - ✅ Next.js 16 + Tailwind v4 PWA shell, mobile tab bar / desktop rail, dark default + light toggle
 - ✅ Data model + Supabase migration (items, outfits, wear_log, wishlist, chats, profiles, storage bucket, RLS)
-- ✅ Demo mode (no env needed): seeded in-memory repo + illustrated demo garments
+- ✅ Local mode (no env needed): seeded repo persisted to `.data/` + illustrated sample garments
 - ✅ Drawer: grid, category chips w/ counts, search, filters (color/season/occasion/laundry/archived), item sheet (favorite, laundry, archive, edit, delete, front/back toggle)
 - ✅ Add flow: multi-photo, in-browser background removal, auto-crop/center, AI tagging (vision → structured attributes), review form, optional back photo
 - ✅ Stylist chat (AI SDK v7): token streaming, collapsible agent steps drawer, header status pill, model pill, attachments, markdown + code with copy, chat history sidebar (persisted), tappable clarifying questions (`ask_user`), outfit boards, item strips, shopping suggestion cards
@@ -15,7 +15,7 @@ Status legend: ✅ done · 🟡 partial · ⬜ todo
 - ✅ 7 curated stylist skills (composition, color, proportion/fit, dress codes, weather, culture, wardrobe gaps)
 - ✅ Outfits tab (saved boards, favorite, delete), Shop tab (suggestions → wishlist → bought), Profile (body, sizes, city, taste)
 - ✅ Supabase magic-link auth + proxy session refresh
-- ⬜ **Deploy**: Supabase project + Vercel + `drawer.shobky.com` (see `docs/DEPLOY.md`)
+- ⬜ **Deploy**: Supabase project + Vercel + `outfits.shobky.com` (see `docs/DEPLOY.md`)
 
 ## Phase 1 — Make it real with your own closet (next)
 1. ⬜ Create Supabase project, run migration, set env on Vercel, deploy to subdomain
@@ -42,6 +42,8 @@ Status legend: ✅ done · 🟡 partial · ⬜ todo
 - ⬜ Native wrappers (Capacitor) if PWA limits bite (camera, push on iOS)
 
 ## Decisions log
+- 2026-11 — Renamed to **Outfits** (repo `shobky/outfits`, subdomain `outfits.shobky.com`). Closet tab keeps the name "Drawer".
+- 2026-11 — Local mode persists to disk so the app is usable with only an OpenAI key.
 - 2026-11 — Demo mode first-class so UI can be built/tested without keys. Repo interface keeps demo and Supabase identical.
 - 2026-11 — In-browser cut-out (free, private) over paid APIs for v0; provider is swappable.
 - 2026-11 — Flat-lay outfit board (real cut-outs) over generated try-on for v0: realism > spectacle.

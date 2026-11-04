@@ -8,7 +8,7 @@ import { Field, MultiChips } from "@/components/drawer/attribute-picker";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { Segmented } from "@/components/ui/segmented";
-import { useProfile } from "@/lib/hooks";
+import { deleteItem, useItems, useProfile } from "@/lib/hooks";
 import type { Profile } from "@/lib/types";
 import { api } from "@/lib/utils";
 
@@ -33,9 +33,11 @@ function ProfileForm({ data, onSaved }: { data: NonNullable<ReturnType<typeof us
       <PageHeader title="Profile" />
       <div className="mx-auto max-w-xl space-y-6 px-4">
         <div className="grid grid-cols-2 gap-2">
-          <Status ok={data.supabase} label={data.supabase ? "Synced (Supabase)" : "Demo data (in memory)"} />
+          <Status ok={data.supabase || data.local} label={data.supabase ? "Synced (Supabase)" : data.local ? "Saved on this machine" : "Demo data (in memory)"} />
           <Status ok={data.ai} label={data.ai ? "AI connected" : "AI in demo mode"} />
         </div>
+
+        <SampleItems />
 
         <Field label="Appearance">
           <Segmented value={(theme as "dark" | "light") ?? "dark"} onChange={setTheme} options={[{ value: "dark", label: "Dark" }, { value: "light", label: "Light" }]} />
@@ -131,6 +133,31 @@ function Status({ ok, label }: { ok: boolean; label: string }) {
     <div className="flex items-center gap-2 rounded-2xl bg-surface px-3 py-2.5 text-[12.5px] font-medium">
       {ok ? <CircleCheck className="size-4 text-accent" /> : <CircleDashed className="size-4 text-amber-400" />}
       {label}
+    </div>
+  );
+}
+
+function SampleItems() {
+  const { data } = useItems();
+  const samples = data?.items.filter((i) => i.id.startsWith("demo-")) ?? [];
+  if (!samples.length) return null;
+  return (
+    <div className="flex items-center gap-3 rounded-[22px] bg-surface p-4">
+      <div className="flex-1">
+        <p className="text-[14px] font-medium">{samples.length} sample pieces in your drawer</p>
+        <p className="text-[12.5px] text-muted">Remove them once you&apos;ve added your own clothes.</p>
+      </div>
+      <Button
+        size="sm"
+        variant="surface"
+        onClick={async () => {
+          if (!confirm("Remove all sample pieces?")) return;
+          for (const i of samples) await deleteItem(i.id);
+          toast("Sample pieces removed");
+        }}
+      >
+        Remove
+      </Button>
     </div>
   );
 }

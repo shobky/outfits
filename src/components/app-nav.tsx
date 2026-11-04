@@ -55,8 +55,8 @@ export function SideRail() {
   const path = usePathname();
   return (
     <aside className="sticky top-0 hidden h-dvh w-[84px] shrink-0 flex-col items-center gap-2 border-r border-border py-5 lg:flex">
-      <Link href="/" className="mb-4 grid size-10 place-items-center rounded-2xl bg-primary text-primary-fg" aria-label="Drawer home">
-        <span className="text-lg font-bold tracking-tighter">D</span>
+      <Link href="/" className="mb-4 grid size-10 place-items-center rounded-2xl bg-primary text-primary-fg" aria-label="Outfits home">
+        <span className="text-lg font-bold tracking-tighter">O</span>
       </Link>
       {TABS.map(({ href, label, icon: Icon, ...t }) => {
         const active = isActive(path, href);

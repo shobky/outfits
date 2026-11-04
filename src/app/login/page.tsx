@@ -15,7 +15,7 @@ export default function LoginPage() {
       <div className="pointer-events-none absolute -top-40 left-1/2 size-[560px] -translate-x-1/2 rounded-full bg-accent/25 blur-[120px]" />
       <div className="relative w-full max-w-sm space-y-8">
         <div className="space-y-3">
-          <div className="grid size-12 place-items-center rounded-2xl bg-primary text-xl font-bold text-primary-fg">D</div>
+          <div className="grid size-12 place-items-center rounded-2xl bg-primary text-xl font-bold text-primary-fg">O</div>
           <h1 className="text-[40px] font-semibold leading-[1.05] tracking-tight">
             Your drawer,
             <br />

@@ -8,9 +8,9 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
-# Drawer — agent guide
+# Outfits — agent guide
 
-AI wardrobe PWA: photograph your clothes → clean cut-outs in a digital **Drawer** → an agentic **Stylist** chat that styles you from what you own (weather, occasion, culture aware) → **Shop** suggestions for real gaps.
+**Outfits** — AI wardrobe PWA: photograph your clothes → clean cut-outs in a digital **Drawer** → an agentic **Stylist** chat that styles you from what you own (weather, occasion, culture aware) → **Shop** suggestions for real gaps.
 
 Read before working: `docs/PLAN.md` (roadmap + what's next), `docs/ARCHITECTURE.md`, `docs/DATA_MODEL.md`, `docs/DESIGN.md`, `docs/STYLIST.md`, `docs/RESEARCH.md` (why each tool was picked).
 
@@ -22,12 +22,13 @@ Read before working: `docs/PLAN.md` (roadmap + what's next), `docs/ARCHITECTURE.
 - pnpm. Node 22.
 
 ## Commands
+- Setup: `cp .env.example .env.local && pnpm install && pnpm dev`
 - `pnpm dev` · `pnpm build` · `pnpm lint` · `npx tsc --noEmit`
 - `node scripts/gen-demo-assets.mjs` (demo SVG garments) · `node scripts/gen-icons.mjs` (PWA icons via Playwright)
 - Before calling work done: `pnpm lint && npx tsc --noEmit && pnpm build`, then drive the UI (see `.claude/skills/verify-ui/SKILL.md`).
 
 ## Modes (important)
-- No `NEXT_PUBLIC_SUPABASE_*` → **demo mode**: in-memory seeded repo (`src/lib/data/demo.ts`), no login. Resets on restart.
+- No `NEXT_PUBLIC_SUPABASE_*` → **local mode**: seeded repo (`src/lib/data/demo.ts`), no login, persisted to `.data/store.json` + `.data/uploads/` (served by `/api/files/[name]`). In-memory only on Vercel or with `LOCAL_PERSIST=0`.
 - No `OPENAI_API_KEY` (or model "demo") → **Demo stylist**: scripted `MockLanguageModelV4` (`src/lib/ai/mock-model.ts`) that still runs real tools.
 - Everything goes through the `Repo` interface (`src/lib/data/repo.ts`). Never call Supabase directly from routes/components — add a repo method to BOTH implementations.
 

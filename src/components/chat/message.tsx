@@ -88,7 +88,7 @@ export const Message = memo(function Message({
 
   return (
     <div className="group flex gap-3">
-      <div className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-full bg-accent text-[11px] font-bold text-accent-fg">D</div>
+      <div className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-full bg-accent text-[11px] font-bold text-accent-fg">O</div>
       <div className="min-w-0 flex-1 space-y-3">
         {blocks.map((b, i) => {
           switch (b.kind) {

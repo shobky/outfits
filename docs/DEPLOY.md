@@ -1,9 +1,9 @@
-# Deploy: Supabase + Vercel + drawer.shobky.com
+# Deploy: Supabase + Vercel + outfits.shobky.com
 
 ## 1. Supabase (free)
 1. https://supabase.com → New project (pick a region near you).
 2. SQL editor → paste `supabase/migrations/0001_init.sql` → Run.
-3. Auth → URL configuration: Site URL `https://drawer.shobky.com`; Redirect URLs add `https://drawer.shobky.com/auth/callback` and `http://localhost:3000/auth/callback`.
+3. Auth → URL configuration: Site URL `https://outfits.shobky.com`; Redirect URLs add `https://outfits.shobky.com/auth/callback` and `http://localhost:3000/auth/callback`.
 4. Project settings → API: copy URL + anon key.
 
 ## 2. Vercel (Hobby)
@@ -12,8 +12,8 @@
 3. Deploy.
 
 ## 3. Subdomain
-Vercel → Project → Settings → Domains → add `drawer.shobky.com`. At your DNS provider for shobky.com add:
-`CNAME  drawer  cname.vercel-dns.com`
+Vercel → Project → Settings → Domains → add `outfits.shobky.com`. At your DNS provider for shobky.com add:
+`CNAME  outfits  cname.vercel-dns.com`
 (If shobky.com already uses Vercel DNS it's automatic.) HTTPS is issued automatically.
 
 ## 4. Local

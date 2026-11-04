@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Drawer — AI wardrobe",
-    short_name: "Drawer",
+    name: "Outfits — AI wardrobe & stylist",
+    short_name: "Outfits",
     description: "Your wardrobe, digitised — with a stylist that knows every piece you own.",
     start_url: "/",
     display: "standalone",

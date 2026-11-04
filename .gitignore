@@ -40,3 +40,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local mode data (closet, uploads, chats)
+/.data/
+*.bundle

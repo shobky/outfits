@@ -34,5 +34,5 @@ export function useWishlist() {
 }
 
 export function useProfile() {
-  return useSWR<{ profile: Profile; mode: "demo" | "supabase"; ai: boolean; supabase: boolean }>("/api/profile", fetcher);
+  return useSWR<{ profile: Profile; mode: "demo" | "supabase"; ai: boolean; supabase: boolean; local: boolean }>("/api/profile", fetcher);
 }

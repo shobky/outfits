@@ -5,10 +5,10 @@ import { Providers } from "@/components/providers";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: { default: "Drawer", template: "%s · Drawer" },
+  title: { default: "Outfits", template: "%s · Outfits" },
   description: "Your wardrobe, digitised — with a stylist that knows every piece you own.",
-  applicationName: "Drawer",
-  appleWebApp: { capable: true, title: "Drawer", statusBarStyle: "black-translucent" },
+  applicationName: "Outfits",
+  appleWebApp: { capable: true, title: "Outfits", statusBarStyle: "black-translucent" },
   icons: { icon: "/icons/icon-192.png", apple: "/icons/apple-touch-icon.png" },
 };
 

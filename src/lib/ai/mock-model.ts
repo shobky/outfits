@@ -67,7 +67,7 @@ function pickOutfit(items: Brief[], dressy: boolean) {
 
 export function createMockModel() {
   return new MockLanguageModelV4({
-    provider: "drawer",
+    provider: "outfits",
     modelId: "demo",
     doStream: async (options) => {
       const { text, results } = turnState(options.prompt as Prompt);

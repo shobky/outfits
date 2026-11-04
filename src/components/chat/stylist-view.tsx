@@ -26,7 +26,7 @@ const SUGGESTIONS = [
 
 function readModel() {
   try {
-    return localStorage.getItem("drawer:model") ?? DEFAULT_MODEL_ID;
+    return localStorage.getItem("outfits:model") ?? DEFAULT_MODEL_ID;
   } catch {
     return DEFAULT_MODEL_ID;
   }
@@ -104,7 +104,7 @@ export function StylistView() {
           onModel={(m) => {
             setModel(m);
             try {
-              localStorage.setItem("drawer:model", m);
+              localStorage.setItem("outfits:model", m);
             } catch {}
           }}
           onToggleSidebar={() => (window.matchMedia("(min-width: 768px)").matches ? setDesktopSidebar((s) => !s) : setMobileSidebar(true))}
@@ -217,7 +217,7 @@ function Conversation({
           )}
           {status === "submitted" && messages[messages.length - 1]?.role === "user" && (
             <div className="flex items-center gap-3">
-              <div className="grid size-7 place-items-center rounded-full bg-accent text-[11px] font-bold text-accent-fg">D</div>
+              <div className="grid size-7 place-items-center rounded-full bg-accent text-[11px] font-bold text-accent-fg">O</div>
               <span className="shimmer-text text-[14px]">Thinking…</span>
             </div>
           )}
@@ -242,7 +242,7 @@ function Conversation({
           autoFocus={messages.length === 0}
           onSend={(text, files) => sendMessage({ text, files })}
         />
-        <p className="py-2 text-center text-[11px] text-faint">Drawer styles from what you own. It can make mistakes.</p>
+        <p className="py-2 text-center text-[11px] text-faint">Outfits styles from what you own. It can make mistakes.</p>
       </div>
     </div>
   );
@@ -294,7 +294,7 @@ function EmptyState({ onPick }: { onPick: (t: string) => void }) {
   return (
     <div className="flex min-h-[55dvh] flex-col justify-end gap-6 pt-10">
       <div className="space-y-2">
-        <div className="grid size-11 place-items-center rounded-2xl bg-accent text-lg font-bold text-accent-fg">D</div>
+        <div className="grid size-11 place-items-center rounded-2xl bg-accent text-lg font-bold text-accent-fg">O</div>
         <h1 className="text-[28px] font-semibold leading-tight tracking-tight md:text-[34px]">
           Hey — what are we
           <br />
@@ -336,7 +336,7 @@ function ChatList({
     <div className="flex h-full flex-col gap-3 p-3 md:pt-4">
       <div className="hidden items-center gap-2 px-2 md:flex">
         <Link href="/" className="grid size-8 place-items-center rounded-xl bg-primary text-sm font-bold text-primary-fg">
-          D
+          O
         </Link>
         <span className="font-semibold tracking-tight">Stylist</span>
         <span className="ml-auto flex items-center gap-1.5 text-[11px] text-muted">
