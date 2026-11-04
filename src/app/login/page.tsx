@@ -6,9 +6,12 @@ import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 
 const URL_ERRORS: Record<string, string> = {
-  auth: "That sign-in link didn't work. Links must be opened in the browser that requested them. Send a new one, or use the code from the email.",
+  auth: "That sign-in link didn't work. Links must be opened in the browser that requested them, so send a new one from there.",
   denied: "This email doesn't have access to Outfits.",
 };
+
+/** Supabase's default email has only a link. Turn this on once custom SMTP sends a template with {{ .Token }}. */
+const EMAIL_HAS_CODE = process.env.NEXT_PUBLIC_AUTH_EMAIL_CODE === "1";
 
 const field = "h-13 w-full rounded-full border border-border-strong bg-surface px-5 text-[15px] outline-none placeholder:text-faint";
 
@@ -20,6 +23,17 @@ function LoginForm() {
   const [sent, setSent] = useState(false);
   const [err, setErr] = useState<string | null>(URL_ERRORS[params.get("error") ?? ""] ?? null);
   const [loading, setLoading] = useState(false);
+
+  if (sent && !EMAIL_HAS_CODE) {
+    return (
+      <div className="flex items-center gap-3 rounded-3xl bg-surface p-5">
+        <Mail className="size-5 shrink-0 text-accent" />
+        <p className="text-sm">
+          Check <b>{email}</b> for a sign-in link, and open it in this browser.
+        </p>
+      </div>
+    );
+  }
 
   if (sent) {
     return (
