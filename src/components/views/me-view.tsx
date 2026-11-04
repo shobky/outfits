@@ -1,6 +1,7 @@
 "use client";
 import { CircleCheck, CircleDashed, LogOut } from "lucide-react";
 import { useTheme } from "next-themes";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { GarmentImage } from "@/components/drawer/item-card";
@@ -37,6 +38,15 @@ function ProfileForm({ data, onSaved }: { data: NonNullable<ReturnType<typeof us
           <Status ok={data.supabase || data.local} label={data.supabase ? "Synced (Supabase)" : data.local ? "Saved on this machine" : "Demo data (in memory)"} />
           <Status ok={data.ai} label={data.ai ? "AI connected" : "AI in demo mode"} />
         </div>
+
+        {data.studio && (
+          <div className="rounded-[22px] bg-surface p-4">
+            <p className="text-[14px] font-medium">Studio shots</p>
+            <p className="text-[12.5px] text-muted">
+              {Math.max(0, data.studio.allowance - data.studio.used)} of {data.studio.allowance} free shots left. After that, pieces use your own photo.
+            </p>
+          </div>
+        )}
 
         <SampleItems />
         <MissingPhotos />
@@ -125,6 +135,14 @@ function ProfileForm({ data, onSaved }: { data: NonNullable<ReturnType<typeof us
             <LogOut className="size-4" /> Sign out
           </Button>
         )}
+
+        {data.supabase && <DeleteAccount />}
+
+        <p className="pb-2 text-center text-[12.5px]">
+          <Link href="/privacy" className="text-muted underline">
+            Privacy
+          </Link>
+        </p>
       </div>
     </div>
   );
@@ -231,5 +249,31 @@ function MissingPhotos() {
         </>
       )}
     </div>
+  );
+}
+
+function DeleteAccount() {
+  const [busy, setBusy] = useState(false);
+  return (
+    <Button
+      variant="danger"
+      className="w-full"
+      disabled={busy}
+      onClick={async () => {
+        if (!confirm("Permanently delete your account, clothes, chats and photos? This can't be undone.")) return;
+        setBusy(true);
+        try {
+          await api("/api/account", "DELETE");
+          const { createClient } = await import("@/lib/supabase/client");
+          await createClient().auth.signOut().catch(() => {});
+          location.replace("/login");
+        } catch (e) {
+          toast.error(`Couldn't delete your account: ${e instanceof Error ? e.message : String(e)}`);
+          setBusy(false);
+        }
+      }}
+    >
+      {busy ? "Deleting…" : "Delete my account"}
+    </Button>
   );
 }

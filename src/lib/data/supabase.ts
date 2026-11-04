@@ -144,6 +144,34 @@ export function supabaseRepo(sb: SupabaseClient, userId: string): Repo {
       return { method: "PUT", url: data.signedUrl, publicUrl: sb.storage.from("wardrobe").getPublicUrl(path).data.publicUrl };
     },
 
+    async aiSpendToday() {
+      return Number(must(await sb.rpc("ai_spend_today"))) || 0;
+    },
+    async studioShotsUsed() {
+      const { count, error } = await sb.from("ai_spend").select("id", { count: "exact", head: true }).eq("kind", "studio");
+      if (error) throw new Error(error.message);
+      return count ?? 0;
+    },
+    async recordAiSpend(kind, usd) {
+      must(await sb.from("ai_spend").insert({ kind, usd }));
+    },
+    async track(name, props) {
+      const { error } = await sb.from("events").insert({ name, props: props ?? {} });
+      if (error) console.warn("[events]", error.message);
+    },
+    async deleteAccount() {
+      // Files first: once the account is gone, nothing could remove them.
+      for (;;) {
+        const { data, error } = await sb.storage.from("wardrobe").list(userId, { limit: 100 });
+        if (error) throw new Error(error.message);
+        if (!data.length) break;
+        const removal = await sb.storage.from("wardrobe").remove(data.map((f) => `${userId}/${f.name}`));
+        if (removal.error) throw new Error(removal.error.message);
+        if (!removal.data?.length) throw new Error("Your photos couldn't be removed, so your account wasn't deleted");
+      }
+      must(await sb.rpc("delete_my_account"));
+    },
+
     async listIntake() {
       const since = new Date(Date.now() - 14 * 864e5).toISOString();
       const batches = must(await sb.from("intake_batches").select("*").gte("created_at", since).order("created_at", { ascending: false })) as IntakeBatch[];

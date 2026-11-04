@@ -23,6 +23,7 @@ export async function POST(req: Request) {
     return Response.json({ error: `You've reached today's limit of ${dailyPhotoLimit()} photos. It resets tomorrow.` }, { status: 429 });
   }
   const batch = await repo.createIntakeBatch(photos);
+  await repo.track("batch_created", { photos: photos.length });
   after(() => runBatch(repo, batch));
   return Response.json(batch);
 }

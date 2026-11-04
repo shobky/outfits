@@ -18,6 +18,7 @@ export async function POST(req: Request) {
   const choice = MODELS.find((m) => m.id === body.model) ?? MODELS.find((m) => m.id === DEFAULT_MODEL_ID)!;
   const useDemo = choice.provider === "demo" || !hasKey;
 
+  await repo.track("chat_sent", { demo: useDemo });
   const [profile, items] = await Promise.all([repo.getProfile(), repo.listItems({})]);
   const tools = createTools(repo, profile);
   const allTools: ToolSet = useDemo

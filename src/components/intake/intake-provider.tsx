@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { mutate } from "swr";
+import { track } from "@/lib/events";
 import { isStuck, useIntake, type IntakeData } from "@/lib/hooks";
 import { isImageFile, PhotoReadError, preparePhoto } from "@/lib/image/process";
 import { uploadImage } from "@/lib/image/upload";
@@ -67,6 +68,15 @@ export function IntakeProvider({ children }: { children: React.ReactNode }) {
     return data.groups.some(isWorking) || data.batches.some((b) => b.status === "analyzing" && !isStuck(b));
   }, [data]);
   useEffect(() => setPolling(active || uploads.length > 0), [active, uploads.length]);
+
+  // Once per visit: this is what retention is measured from.
+  useEffect(() => {
+    try {
+      if (sessionStorage.getItem("outfits:opened")) return;
+      sessionStorage.setItem("outfits:opened", "1");
+    } catch {}
+    track("app_open");
+  }, []);
 
   // Tell the owner about finished pieces wherever they are in the app.
   const known = useRef<Map<string, string> | null>(null);

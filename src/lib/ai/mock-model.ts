@@ -87,7 +87,15 @@ export function createMockModel() {
       const vague = /tonight|going out|what should i wear|outfit$/.test(text) && !dressy;
       let chunks: unknown[];
 
-      if (shopping) {
+      const pasted = /https?:\/\/\S+/.exec(text)?.[0];
+      if (pasted) {
+        if (!results.check_product) {
+          chunks = [...textChunks("reasoning", "They shared a product. I'll read the page, then compare it with what they own."), toolCall("check_product", { url: pasted }), finish("tool-calls")];
+        } else {
+          const read = (results.check_product as { readable?: boolean }).readable;
+          chunks = [...textChunks("text", `${read ? "It would sit well with your neutrals, but compare it with what you already own before buying." : "I couldn't read that page, so tell me what the item is and I'll check it against your drawer."}\n\n_Demo mode: add an OpenAI key for a real opinion._`), finish("stop")];
+        }
+      } else if (shopping) {
         if (!results.wardrobe_stats) {
           chunks = [
             ...textChunks("reasoning", "The user wants shopping advice. First I'll look at the closet composition to find real gaps, then load the gap-analysis rules."),

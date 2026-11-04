@@ -1,6 +1,7 @@
 "use client";
 import { Bookmark, Check, ExternalLink, Plus, ShoppingBag, Sparkles, X } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { mutate } from "swr";
@@ -55,6 +56,7 @@ export function ShopView() {
         }
       />
       <div className="space-y-4 px-4 md:px-8">
+        <ProductCheck />
         <Link
           href="/stylist?q=Analyse%20my%20wardrobe%20and%20suggest%20what%20to%20buy%20next"
           className="flex items-center gap-3 rounded-[26px] bg-gradient-to-br from-accent/90 to-accent/60 p-4 text-accent-fg shadow-soft active:scale-[0.99]"
@@ -183,5 +185,28 @@ function AddWish({ open, onOpenChange }: { open: boolean; onOpenChange: (o: bool
         </Button>
       </form>
     </Sheet>
+  );
+}
+
+/** Catches the moment someone is about to buy, and answers honestly from what they own. */
+function ProductCheck() {
+  const [url, setUrl] = useState("");
+  const router = useRouter();
+  return (
+    <form
+      className="space-y-2 rounded-[26px] bg-surface p-4"
+      onSubmit={(e) => {
+        e.preventDefault();
+        router.push(`/stylist?q=${encodeURIComponent(`Does this work with what I own? ${url.trim()}`)}`);
+      }}
+    >
+      <p className="text-[14px] font-medium">Thinking of buying something?</p>
+      <div className="flex gap-2">
+        <input type="url" required value={url} onChange={(e) => setUrl(e.target.value)} placeholder="Paste a product link" aria-label="Product link" className="h-10 min-w-0 flex-1 rounded-full border border-border bg-bg px-4 text-[14px] outline-none placeholder:text-faint focus:border-border-strong" />
+        <Button size="md" type="submit">
+          Check it
+        </Button>
+      </div>
+    </form>
   );
 }

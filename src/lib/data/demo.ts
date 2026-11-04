@@ -15,6 +15,7 @@ interface Store {
   chats: Map<string, { session: ChatSession; messages: UIMessage[] }>;
   intakeBatches: IntakeBatch[];
   intakeGroups: IntakeGroup[];
+  aiSpend: { kind: "vision" | "studio"; usd: number; at: string }[];
 }
 /**
  * Local mode persists to `.data/` (gitignored) so your closet survives restarts
@@ -31,7 +32,7 @@ function load(): Store | null {
   if (!PERSIST || !existsSync(STORE_FILE)) return null;
   try {
     const raw = JSON.parse(readFileSync(STORE_FILE, "utf8")) as Persisted;
-    return { ...raw, intakeBatches: raw.intakeBatches ?? [], intakeGroups: raw.intakeGroups ?? [], items: raw.items.map((i) => ({ ...i, images: i.images ?? [] })), chats: new Map(raw.chats) };
+    return { ...raw, intakeBatches: raw.intakeBatches ?? [], intakeGroups: raw.intakeGroups ?? [], aiSpend: raw.aiSpend ?? [], items: raw.items.map((i) => ({ ...i, images: i.images ?? [] })), chats: new Map(raw.chats) };
   } catch (e) {
     console.error("[outfits] could not read .data/store.json — starting fresh", e);
     return null;
@@ -56,6 +57,7 @@ function store(): Store {
     chats: new Map(),
     intakeBatches: [],
     intakeGroups: [],
+    aiSpend: [],
   };
   return g.__outfitsStore;
 }
@@ -181,6 +183,23 @@ const repo: Repo = {
     return { method: "FORM", url: "/api/upload", publicUrl: null };
   },
 
+  async aiSpendToday() {
+    const today = ts().slice(0, 10);
+    return store().aiSpend.filter((s) => s.at.startsWith(today)).reduce((n, s) => n + s.usd, 0);
+  },
+  async studioShotsUsed() {
+    return store().aiSpend.filter((s) => s.kind === "studio").length;
+  },
+  async recordAiSpend(kind, usd) {
+    store().aiSpend.push({ kind, usd, at: ts() });
+  },
+  async track() {
+    // Nothing to measure on one person's own machine.
+  },
+  async deleteAccount() {
+    throw new Error("There's no account to delete in local mode");
+  },
+
   async listIntake() {
     const newestFirst = <T extends { created_at: string }>(rows: T[]) => [...rows].sort((a, b) => b.created_at.localeCompare(a.created_at));
     return { batches: newestFirst(store().intakeBatches), groups: newestFirst(store().intakeGroups.filter((g) => g.status !== "dismissed")) };
@@ -211,7 +230,7 @@ const repo: Repo = {
 };
 
 /** Wrap every mutating method so it writes the store to disk afterwards. */
-const MUTATING = ["createIntakeBatch", "updateIntakeBatch", "createIntakeGroups", "updateIntakeGroup", "createItem", "updateItem", "deleteItem", "logWear", "createOutfit", "updateOutfit", "deleteOutfit", "createWishlist", "updateWishlist", "deleteWishlist", "updateProfile", "saveChat", "deleteChat"] as const;
+const MUTATING = ["recordAiSpend", "createIntakeBatch", "updateIntakeBatch", "createIntakeGroups", "updateIntakeGroup", "createItem", "updateItem", "deleteItem", "logWear", "createOutfit", "updateOutfit", "deleteOutfit", "createWishlist", "updateWishlist", "deleteWishlist", "updateProfile", "saveChat", "deleteChat"] as const;
 for (const k of MUTATING) {
   const fn = repo[k] as (...a: unknown[]) => Promise<unknown>;
   (repo as unknown as Record<string, unknown>)[k] = async (...args: unknown[]) => {

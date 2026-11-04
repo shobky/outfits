@@ -9,7 +9,9 @@ export async function POST(req: Request) {
     return Response.json({ error: "item_ids and date are required" }, { status: 400 });
   }
   try {
-    return Response.json({ logged: await repo.logWear(item_ids, date, outfit_id ?? null) });
+    const logged = await repo.logWear(item_ids, date, outfit_id ?? null);
+    if (logged) await repo.track("worn_logged", { pieces: logged });
+    return Response.json({ logged });
   } catch (e) {
     console.error("[wear]", e);
     return Response.json({ error: e instanceof Error ? e.message : String(e) }, { status: 500 });

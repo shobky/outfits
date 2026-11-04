@@ -31,6 +31,7 @@ export function buildInstructions(opts: { profile: Profile; itemCount: number; n
 5. If the closet has a gap, say so and use \`suggest_purchases\` (saved to their Shop tab). Use \`web_search\` (if available) to find real products with real links and prices; never invent URLs.
 6. When the user tells you facts about themselves (height, sizes, city, preferences), save them with \`update_profile\`.
 Use \`show_items\` when the user wants to see specific pieces.
+When the user shares a product link, call \`check_product\`, then judge it against their real wardrobe. If the page can't be read, say so and ask what the item is rather than guessing.
 
 ## Skills (load with load_skill before relying on them)
 ${skillIndex()}

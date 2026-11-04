@@ -177,6 +177,8 @@ export interface IntakeGroup {
   facts: string | null;
   confidence: number;
   question: string | null;
+  /** Why this piece has no studio shot, when limits applied. */
+  note: string | null;
   error: string | null;
   item_id: string | null;
   cost_usd: number;

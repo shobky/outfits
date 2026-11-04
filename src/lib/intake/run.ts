@@ -2,6 +2,7 @@ import "server-only";
 import type { Repo } from "../data/repo";
 import type { IntakeBatch, IntakeGroup, IntakeView, ItemImage, ItemInput } from "../types";
 import { analyzePhotos, type AnalyzedGroup } from "./analyze";
+import { canReadPhotos, checkStudio, record } from "./budget";
 import { aiEnabled, frameOriginal, restyle } from "./studio";
 
 /** Below this the piece waits for the owner instead of going straight into the drawer. */
@@ -67,7 +68,9 @@ async function inPool<T>(items: T[], worker: (item: T) => Promise<void>) {
 export async function runBatch(repo: Repo, batch: IntakeBatch) {
   try {
     const photos = await Promise.all(batch.photos.map((url) => repo.readImage(url)));
-    const { analysis, usd } = aiEnabled() ? await analyzePhotos(photos) : { analysis: { groups: offlineGroups(photos.length), rejected: [] }, usd: 0 };
+    const useVision = aiEnabled() && (await canReadPhotos(repo));
+    const { analysis, usd } = useVision ? await analyzePhotos(photos) : { analysis: { groups: offlineGroups(photos.length), rejected: [] }, usd: 0 };
+    if (usd) await record(repo, "vision", usd);
     const groups = await repo.createIntakeGroups(
       analysis.groups.map((g) => ({
         batch_id: batch.id,
@@ -79,6 +82,7 @@ export async function runBatch(repo: Repo, batch: IntakeBatch) {
         facts: g.facts || null,
         confidence: g.confidence,
         question: g.question,
+        note: null,
         error: null,
         item_id: null,
         cost_usd: 0,
@@ -102,6 +106,7 @@ export async function runGroup(repo: Repo, group: IntakeGroup) {
   const views: IntakeView[] = group.views.map((v) => ({ ...v, error: null }));
   const stale: string[] = [];
   let cost = Number(group.cost_usd) || 0;
+  let note: string | null = null;
   const label = group.draft.name || "this piece";
   await repo.updateIntakeGroup(group.id, { status: "processing", error: null, step: `Styling ${label}` });
 
@@ -118,14 +123,23 @@ export async function runGroup(repo: Repo, group: IntakeGroup) {
         v.result_url = await store(repo, await frameOriginal(photo, v.rotation));
         continue;
       }
+      const decision = await checkStudio(repo);
+      if (!decision.ok) {
+        note = decision.note;
+        v.result_url = await store(repo, await frameOriginal(photo, v.rotation));
+        continue;
+      }
       await repo.updateIntakeGroup(group.id, { step: `Styling the ${v.view} of ${label}` });
       const { data, usd } = await restyle(photo, { rotation: v.rotation, facts: group.facts ?? group.description ?? label, view: v.view });
       cost += usd;
+      await record(repo, "studio", usd);
       v.result_url = await store(repo, data);
       v.ai = true;
     } catch (e) {
       console.error("[intake] view failed", group.id, v.view, e);
-      cost += (e as { usd?: number }).usd ?? 0;
+      const wasted = (e as { usd?: number }).usd ?? 0;
+      cost += wasted;
+      if (wasted) await record(repo, "studio", wasted);
       v.error = reason(e);
       // Keep the real photo visible so the piece is usable while a retry is pending.
       if (!v.result_url) {
@@ -145,12 +159,14 @@ export async function runGroup(repo: Repo, group: IntakeGroup) {
   } else if (!needsOwner) {
     itemId = (await addItem(repo, { ...group, views })).id;
     status = "added";
+    await repo.track("piece_added", { auto: true, photos: views.length });
   }
   await repo.updateIntakeGroup(group.id, {
     status,
     views,
     item_id: itemId,
     cost_usd: cost,
+    note,
     step: null,
     error: failed ? `The studio shot failed: ${failed.error}` : null,
   });

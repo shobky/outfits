@@ -1,4 +1,5 @@
 import { getRepo, isSupabaseConfigured, unauthorized } from "@/lib/data";
+import { limitsFromEnv } from "@/lib/intake/limits";
 import { PERSIST } from "@/lib/data/demo";
 import { geocode } from "@/lib/weather";
 import type { Profile } from "@/lib/types";
@@ -6,10 +7,13 @@ import type { Profile } from "@/lib/types";
 export async function GET() {
   const repo = await getRepo();
   if (!repo) return unauthorized();
+  const ai = Boolean(process.env.OPENAI_API_KEY);
+  const studio = ai ? await repo.studioShotsUsed().then((used) => ({ used, allowance: limitsFromEnv().allowance })).catch(() => null) : null;
   return Response.json({
+    studio,
     profile: await repo.getProfile(),
     mode: repo.mode,
-    ai: Boolean(process.env.OPENAI_API_KEY),
+    ai,
     supabase: isSupabaseConfigured(),
     local: !isSupabaseConfigured() && PERSIST,
   });

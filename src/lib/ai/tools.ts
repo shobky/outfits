@@ -214,6 +214,25 @@ export function createTools(repo: Repo, profile: Profile) {
       },
     }),
 
+    check_product: tool({
+      description: "Read a product link the user shared, to judge whether it works with what they own. Then use search_wardrobe and answer honestly: what it pairs with, whether they already own something too similar, and how many outfits it adds. Saying 'skip it' is a good answer.",
+      inputSchema: z.object({ url: z.string().describe("The product link") }),
+      execute: async ({ url }) => {
+        await repo.track("product_check");
+        const check = await checkProductUrl(url);
+        const facts = check.status === "ok" ? check.facts : {};
+        return {
+          url: check.status === "ok" ? check.url : url,
+          readable: check.status === "ok",
+          title: facts.title ?? null,
+          image_url: facts.image_url ?? null,
+          price: facts.price ?? null,
+          currency: facts.currency ?? null,
+          retailer: facts.retailer ?? null,
+        };
+      },
+    }),
+
     suggest_purchases: tool({
       description:
         "Save shopping suggestions to the user's Shop tab. Only include url/image_url/price if you actually found them (e.g. via web_search). Links are checked: the image and price are read from the retailer's page, and dead links are removed.",

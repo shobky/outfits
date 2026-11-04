@@ -336,6 +336,7 @@ function ReviewPiece({ group: g, onClose, onNext }: { group: IntakeGroup; onClos
           <Sparkles className="mt-0.5 size-4 shrink-0 text-accent" /> {g.question}
         </p>
       )}
+      {g.note && <p className="rounded-2xl bg-surface p-3 text-[13px] text-muted">{g.note}</p>}
       {g.description && <p className="text-[13px] text-muted">{g.description}</p>}
 
       {g.views.length > 1 && g.status !== "added" && (

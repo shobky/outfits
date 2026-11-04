@@ -46,6 +46,16 @@ export interface Repo {
   /** Where the browser should send a photo: straight to storage when possible. */
   createUploadTarget(ext: "jpg"): Promise<{ method: "PUT" | "FORM"; url: string; publicUrl: string | null }>;
 
+  /** Everyone's AI spend so far today, for the global cap. */
+  aiSpendToday(): Promise<number>;
+  /** How many studio shots this user has had. */
+  studioShotsUsed(): Promise<number>;
+  recordAiSpend(kind: "vision" | "studio", usd: number): Promise<void>;
+  /** Usage measurement. Never throws: it must not get in the way of the app. */
+  track(name: string, props?: Record<string, unknown>): Promise<void>;
+  /** Permanently removes this user, their data and their files. */
+  deleteAccount(): Promise<void>;
+
   listIntake(): Promise<{ batches: IntakeBatch[]; groups: IntakeGroup[] }>;
   countIntakePhotosToday(): Promise<number>;
   createIntakeBatch(photos: string[]): Promise<IntakeBatch>;

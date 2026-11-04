@@ -1,6 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import { isEmailAllowed } from "@/lib/access";
+import { hasAccess, inviteOnly } from "@/lib/access";
 
 /**
  * Refreshes the Supabase session cookie and gates the app behind login.
@@ -25,7 +25,8 @@ export async function proxy(request: NextRequest) {
 
   const { data } = await supabase.auth.getUser();
   const path = request.nextUrl.pathname;
-  const isPublic = path.startsWith("/login") || path.startsWith("/auth");
+  const isPublic = path.startsWith("/login") || path.startsWith("/auth") || path.startsWith("/privacy");
+  const isInvite = path.startsWith("/invite") || path.startsWith("/api/invite");
 
   if (!data.user && !isPublic) {
     if (path.startsWith("/api/")) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -33,12 +34,12 @@ export async function proxy(request: NextRequest) {
     login.pathname = "/login";
     return NextResponse.redirect(login);
   }
-  if (data.user && !isPublic && !isEmailAllowed(data.user.email)) {
+  if (data.user && !isPublic && !isInvite && !(await hasAccess(supabase as never, data.user))) {
     if (path.startsWith("/api/")) return NextResponse.json({ error: "This email doesn't have access" }, { status: 403 });
-    const login = request.nextUrl.clone();
-    login.pathname = "/login";
-    login.search = "?error=denied";
-    return NextResponse.redirect(login);
+    const next = request.nextUrl.clone();
+    next.pathname = inviteOnly() ? "/invite" : "/login";
+    next.search = inviteOnly() ? "" : "?error=denied";
+    return NextResponse.redirect(next);
   }
   return response;
 }

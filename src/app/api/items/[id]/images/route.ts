@@ -1,4 +1,5 @@
 import { getRepo, unauthorized, type Repo } from "@/lib/data";
+import { checkStudio, record } from "@/lib/intake/budget";
 import { aiEnabled, frameOriginal, restyle } from "@/lib/intake/studio";
 import { removePhoto, setPhoto, type PhotoChange, type SetPhoto } from "@/lib/item-images";
 
@@ -29,11 +30,19 @@ export async function POST(req: Request, ctx: RouteContext<"/api/items/[id]/imag
     const raw = await repo.readImage(body.url);
     let framed: Buffer;
     let warning: string | undefined;
-    if (body.view !== "detail" && aiEnabled()) {
+    const decision = body.view !== "detail" && aiEnabled() ? await checkStudio(repo) : null;
+    if (decision && !decision.ok) {
+      warning = decision.note;
+      framed = await frameOriginal(raw);
+    } else if (decision) {
       try {
-        framed = (await restyle(raw, { rotation: 0, view: body.view, facts: [item.name, item.description].filter(Boolean).join(". ") })).data;
+        const shot = await restyle(raw, { rotation: 0, view: body.view, facts: [item.name, item.description].filter(Boolean).join(". ") });
+        await record(repo, "studio", shot.usd);
+        framed = shot.data;
       } catch (e) {
         console.error("[item images] studio failed", e);
+        const wasted = (e as { usd?: number }).usd ?? 0;
+        if (wasted) await record(repo, "studio", wasted);
         warning = "The studio shot failed, so this uses your photo. Try replacing it again.";
         framed = await frameOriginal(raw);
       }

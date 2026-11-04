@@ -9,6 +9,7 @@ import { OutfitBoard } from "@/components/outfit/outfit-board";
 import { Button } from "@/components/ui/button";
 import type { VisualItem } from "@/lib/ai/tools";
 import type { Occasion } from "@/lib/taxonomy";
+import { track } from "@/lib/events";
 import { markWorn } from "@/lib/hooks";
 import type { WeatherSnapshot, WishlistItem } from "@/lib/types";
 import { api, cn, titleCase } from "@/lib/utils";
@@ -104,6 +105,7 @@ export function OutfitCard({ outfit }: { outfit: OutfitResult }) {
         items: items.map((i) => ({ item_id: i.id, slot: i.slot })),
       });
       setSaved(true);
+      track("outfit_saved");
       mutate("/api/outfits");
       toast.success("Outfit saved");
     } catch (e) {
@@ -241,12 +243,47 @@ function ProductCard({ item: w }: { item: WishlistItem }) {
           {saved ? "Saved" : "Save"}
         </Button>
         {w.url && (
-          <a href={w.url} target="_blank" rel="noreferrer" className="inline-flex h-8 flex-1 items-center justify-center gap-1.5 rounded-full bg-primary px-3 text-[13px] font-medium text-primary-fg">
+          <a href={w.url} target="_blank" rel="noreferrer" onClick={() => track("shop_suggestion_tap", { where: "chat" })} className="inline-flex h-8 flex-1 items-center justify-center gap-1.5 rounded-full bg-primary px-3 text-[13px] font-medium text-primary-fg">
             View <ExternalLink className="size-3" />
           </a>
         )}
       </div>
     </div>
+  );
+}
+
+export interface ProductCheckResult {
+  url: string;
+  readable: boolean;
+  title: string | null;
+  image_url: string | null;
+  price: number | null;
+  currency: string | null;
+  retailer: string | null;
+}
+
+export function ProductCheckCard({ product: p }: { product: ProductCheckResult }) {
+  const [imageFailed, setImageFailed] = useState(false);
+  let host = p.url;
+  try {
+    host = new URL(p.url).hostname.replace(/^www\./, "");
+  } catch {}
+  return (
+    <a href={p.url} target="_blank" rel="noreferrer" onClick={() => track("shop_suggestion_tap", { where: "check" })} className="flex w-full max-w-[420px] items-center gap-3 rounded-[26px] border border-border bg-surface p-3 shadow-soft">
+      <span className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-2xl bg-tile">
+        {p.image_url && !imageFailed ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={p.image_url} alt="" referrerPolicy="no-referrer" onError={() => setImageFailed(true)} className="size-full object-cover" />
+        ) : (
+          <ShoppingBag className="size-6 text-faint" />
+        )}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="line-clamp-2 block text-[13.5px] font-semibold">{p.title ?? (p.readable ? host : "We couldn't read this page")}</span>
+        <span className="block truncate text-[12.5px] text-muted">{[p.price ? formatPrice(p.price, p.currency) : null, p.retailer ?? host].filter(Boolean).join(" · ")}</span>
+      </span>
+      <ExternalLink className="size-4 shrink-0 text-faint" />
+    </a>
   );
 }
 

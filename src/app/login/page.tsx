@@ -1,5 +1,6 @@
 "use client";
 import { ArrowRight, Mail } from "lucide-react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -110,6 +111,11 @@ export default function LoginPage() {
         <Suspense>
           <LoginForm />
         </Suspense>
+        <p className="text-center text-[12.5px]">
+          <Link href="/privacy" className="text-muted underline">
+            Privacy
+          </Link>
+        </p>
       </div>
     </div>
   );

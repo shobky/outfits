@@ -5,8 +5,8 @@
  * it survives the app being closed and doesn't depend on the phone's memory.
  */
 
-const MAX_EDGE = 1600;
-const JPEG_QUALITY = 0.85;
+const MAX_EDGE = 1280;
+const JPEG_QUALITY = 0.8;
 
 /** A photo the browser can't read at all. `message` is written for the user. */
 export class PhotoReadError extends Error {

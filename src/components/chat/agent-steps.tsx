@@ -35,6 +35,7 @@ const TOOL_META: Record<string, { label: string; icon: typeof Search; summary?: 
 export const PROCESS_TOOLS = new Set(Object.keys(TOOL_META));
 
 export function toolLabel(name: string) {
+  if (name === "check_product") return "Reading the product page";
   return TOOL_META[name]?.label ?? name.replace(/_/g, " ");
 }
 

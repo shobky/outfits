@@ -27,6 +27,7 @@ export async function POST(req: Request, ctx: RouteContext<"/api/intake/groups/[
         if (!current.draft.name?.trim()) return Response.json({ error: "Give it a name first" }, { status: 400 });
         const item = current.item_id ? await repo.updateItem(current.item_id, current.draft) : await addItem(repo, current);
         await repo.updateIntakeGroup(id, { status: "added", item_id: item.id, draft: current.draft, question: null });
+        if (!current.item_id) await repo.track("piece_added", { auto: false, photos: current.views.length });
         return Response.json({ ok: true, item_id: item.id });
       }
       case "split": {
@@ -44,6 +45,7 @@ export async function POST(req: Request, ctx: RouteContext<"/api/intake/groups/[
             facts: null,
             confidence: 0,
             question: null,
+            note: null,
             error: null,
             item_id: null,
             cost_usd: 0,
