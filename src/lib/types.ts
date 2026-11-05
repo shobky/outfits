@@ -103,6 +103,8 @@ export interface Profile {
   budget: "low" | "mid" | "high" | null;
   currency: string;
   notes: string | null;
+  /** Developer switch. The app ignores it unless the address is in ALLOWED_EMAILS. */
+  limits_off?: boolean;
 }
 
 export interface WeatherSnapshot {

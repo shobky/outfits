@@ -2,6 +2,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { UIMessage } from "ai";
 import type { ChatSession, IntakeBatch, IntakeGroup, Item, Outfit, Profile, WishlistItem } from "../types";
+import { startOfDay } from "../usage-rules";
 import { filterItems, wearPatch } from "./filters";
 import type { Repo } from "./repo";
 
@@ -153,6 +154,9 @@ export function supabaseRepo(sb: SupabaseClient, userId: string, email: string |
       if (error) throw new Error(error.message);
       return count ?? 0;
     },
+    async chatMessagesToday() {
+      return Number(must(await sb.rpc("chat_messages_today"))) || 0;
+    },
     async recordAiSpend(kind, usd) {
       must(await sb.rpc("record_ai_spend", { spend_kind: kind, spend_usd: usd }));
     },
@@ -180,8 +184,7 @@ export function supabaseRepo(sb: SupabaseClient, userId: string, email: string |
       return { batches, groups };
     },
     async countIntakePhotosToday() {
-      const since = new Date(Date.now() - 864e5).toISOString();
-      const rows = must(await sb.from("intake_batches").select("photos").gte("created_at", since)) as { photos: string[] }[];
+      const rows = must(await sb.from("intake_batches").select("photos").gte("created_at", startOfDay())) as { photos: string[] }[];
       return rows.reduce((n, r) => n + r.photos.length, 0);
     },
     async createIntakeBatch(photos) {

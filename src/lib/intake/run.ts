@@ -10,7 +10,6 @@ const AUTO_ADD_CONFIDENCE = 0.75;
 /** Two at a time keeps eight photos inside one function's time limit. */
 const CONCURRENCY = 2;
 export const MAX_PHOTOS = 8;
-export const dailyPhotoLimit = () => Number(process.env.INTAKE_DAILY_PHOTO_LIMIT || 60);
 
 const reason = (e: unknown) => (e instanceof Error ? e.message : String(e));
 

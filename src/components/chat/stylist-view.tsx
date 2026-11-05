@@ -8,6 +8,7 @@ import { useTheme } from "next-themes";
 import { useEffect, useMemo, useRef, useState } from "react";
 import useSWR, { mutate } from "swr";
 import { Sheet } from "@/components/ui/sheet";
+import { ChatAllowanceNote, chatIsOut, ChatRestCard, refreshUsage, useUsage } from "@/components/usage/usage";
 import { DEFAULT_MODEL_ID } from "@/lib/ai/models";
 import type { DrawerUIMessage } from "@/lib/ai/tools";
 import { useProfile } from "@/lib/hooks";
@@ -152,8 +153,11 @@ function Conversation({
     messages: initial,
     transport,
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
-    onFinish: () => mutate("/api/chats"),
+    onFinish: () => (mutate("/api/chats"), refreshUsage()),
+    onError: () => refreshUsage(),
   });
+  const { data: usage } = useUsage();
+  const outOfMessages = chatIsOut(usage, model);
 
   const sent = useRef(false);
   const router = useRouter();
@@ -223,9 +227,9 @@ function Conversation({
               <span className="shimmer-text text-[14px]">Thinking…</span>
             </div>
           )}
-          {error && (
+          {error && !error.message.includes("chat_limit") && (
             <div className="flex items-center justify-between gap-3 rounded-2xl bg-danger/10 px-4 py-3 text-sm text-danger">
-              <span>{error.message || "Something went wrong."}</span>
+              <span>{friendlyError(error.message)}</span>
               <button onClick={() => regenerate()} className="font-medium underline">
                 Retry
               </button>
@@ -235,19 +239,36 @@ function Conversation({
       </div>
 
       <div className="mx-auto w-full max-w-[760px] shrink-0 px-3 pb-[max(calc(env(safe-area-inset-bottom)-0.75rem),0px)] pt-2 md:px-4">
-        <Composer
-          busy={busy}
-          onStop={stop}
-          model={model}
-          onModel={onModel}
-          aiReady={aiReady}
-          autoFocus={messages.length === 0}
-          onSend={(text, files) => sendMessage({ text, files })}
-        />
+        {outOfMessages && usage ? (
+          <ChatRestCard usage={usage} />
+        ) : (
+          <>
+            <ChatAllowanceNote usage={usage} model={model} />
+            <Composer
+              busy={busy}
+              onStop={stop}
+              model={model}
+              onModel={onModel}
+              aiReady={aiReady}
+              developer={usage?.developer}
+              autoFocus={messages.length === 0}
+              onSend={(text, files) => sendMessage({ text, files })}
+            />
+          </>
+        )}
         <p className="py-1.5 text-center text-[11px] text-faint">Outfits styles from what you own. It can make mistakes.</p>
       </div>
     </div>
   );
+}
+
+/** The server's errors arrive as a JSON string. */
+function friendlyError(raw: string) {
+  try {
+    return (JSON.parse(raw) as { error?: string }).error ?? "Something went wrong.";
+  } catch {
+    return raw || "Something went wrong.";
+  }
 }
 
 type AgentState = { label: string; tone: "idle" | "busy" | "done" | "error" };

@@ -13,6 +13,7 @@ export function Composer({
   onModel,
   aiReady,
   autoFocus,
+  developer,
 }: {
   onSend: (text: string, files?: FileList) => void;
   onStop: () => void;
@@ -21,6 +22,7 @@ export function Composer({
   onModel: (id: string) => void;
   aiReady: boolean;
   autoFocus?: boolean;
+  developer?: boolean;
 }) {
   const [text, setText] = useState("");
   const [files, setFiles] = useState<FileList | undefined>();
@@ -89,7 +91,7 @@ export function Composer({
           </DropdownMenu.Trigger>
           <DropdownMenu.Portal>
             <DropdownMenu.Content side="top" align="start" sideOffset={8} className="z-50 min-w-60 rounded-2xl border border-border bg-bg-elevated p-1.5 shadow-2xl animate-in fade-in zoom-in-95">
-              {MODELS.map((m) => (
+              {MODELS.filter((m) => developer || !m.developerOnly).map((m) => (
                 <DropdownMenu.Item key={m.id} onSelect={() => onModel(m.id)} className="flex cursor-pointer items-center gap-3 rounded-xl px-3 py-2 outline-none data-[highlighted]:bg-surface-2">
                   <div className="flex-1">
                     <p className="text-[13.5px] font-medium">{m.label}</p>

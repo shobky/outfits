@@ -8,6 +8,7 @@ import { ItemForm, type Draft } from "@/components/drawer/item-form";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { Sheet } from "@/components/ui/sheet";
+import { PhotoAllowanceNote } from "@/components/usage/usage";
 import { isStuck } from "@/lib/hooks";
 import type { IntakeBatch, IntakeGroup } from "@/lib/types";
 import { api, cn } from "@/lib/utils";
@@ -77,6 +78,7 @@ export function AddView() {
             </Button>
           </div>
           <p className="text-xs text-faint">You can leave this screen. It carries on in the background.</p>
+          <PhotoAllowanceNote />
         </div>
 
         {uploads.map((u) => (

@@ -1,6 +1,8 @@
 import { after } from "next/server";
 import { getRepo, unauthorized } from "@/lib/data";
-import { dailyPhotoLimit, MAX_PHOTOS, runBatch } from "@/lib/intake/run";
+import { MAX_PHOTOS, runBatch } from "@/lib/intake/run";
+import { limitsAreOff, photoDailyLimit } from "@/lib/usage";
+import { nextReset } from "@/lib/usage-rules";
 
 export const maxDuration = 300;
 
@@ -18,9 +20,13 @@ export async function POST(req: Request) {
   if (!photos?.length) return Response.json({ error: "No photos were sent" }, { status: 400 });
   if (photos.length > MAX_PHOTOS) return Response.json({ error: `Up to ${MAX_PHOTOS} photos at a time` }, { status: 400 });
   // AI spend happens on the owner's key, so a runaway client can't run it up.
-  const today = await repo.countIntakePhotosToday();
-  if (today + photos.length > dailyPhotoLimit()) {
-    return Response.json({ error: `You've reached today's limit of ${dailyPhotoLimit()} photos. It resets tomorrow.` }, { status: 429 });
+  if (!(await limitsAreOff(repo))) {
+    const today = await repo.countIntakePhotosToday();
+    if (today + photos.length > photoDailyLimit()) {
+      const left = Math.max(0, photoDailyLimit() - today);
+      const at = new Date(nextReset()).toUTCString().slice(17, 22);
+      return Response.json({ error: left ? `You have ${left} photo${left === 1 ? "" : "s"} left today, so try fewer. More at ${at} UTC.` : `That's all your photos for today. More at ${at} UTC.` }, { status: 429 });
+    }
   }
   const batch = await repo.createIntakeBatch(photos);
   await repo.track("batch_created", { photos: photos.length });

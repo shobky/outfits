@@ -51,7 +51,9 @@ export interface Repo {
   aiSpendToday(): Promise<number>;
   /** How many studio shots this user has had. */
   studioShotsUsed(): Promise<number>;
-  recordAiSpend(kind: "vision" | "studio", usd: number): Promise<void>;
+  recordAiSpend(kind: "vision" | "studio" | "chat", usd: number): Promise<void>;
+  /** This user's counted stylist messages since midnight UTC. */
+  chatMessagesToday(): Promise<number>;
   /** Usage measurement. Never throws: it must not get in the way of the app. */
   track(name: string, props?: Record<string, unknown>): Promise<void>;
   /** Permanently removes this user, their data and their files. */

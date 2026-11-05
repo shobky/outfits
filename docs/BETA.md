@@ -31,7 +31,9 @@ Addresses in `ALLOWED_EMAILS` skip the personal allowance but still stop at the 
 
 Each person counts for at most $2 toward the daily total, so one account can't use up the cap for everyone. The cost is that heavy use by a listed address is undercounted.
 
-**Decide before inviting anyone: stylist chat has no cap.** A user can send unlimited messages on your key, and its cost is unmeasured. Add a per-user daily message limit first.
+Stylist chat allows `CHAT_DAILY_LIMIT` (default 20) messages per person per day, resetting at midnight UTC. People see a count at 5 left, and a rest card with the time when they run out. Its cost is now recorded in `ai_spend` as `chat`, except web searches ($0.01 each), which the usage totals don't report. GPT-5.5 is developer-only because it costs about 7x more.
+
+**Developer menu:** in Profile, only for addresses in `ALLOWED_EMAILS`. Its switch turns off the message, photo and studio allowances and the daily budget for that account. `AI_STUDIO_ENABLED=0` still stops studio shots.
 
 ## Invites
 Run in the Supabase SQL editor. One code per person makes it easy to see who came from where:

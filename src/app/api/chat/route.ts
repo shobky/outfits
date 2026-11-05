@@ -5,6 +5,10 @@ import { createMockModel } from "@/lib/ai/mock-model";
 import { DEFAULT_MODEL_ID, MODELS } from "@/lib/ai/models";
 import { buildInstructions } from "@/lib/ai/system-prompt";
 import { createTools, type DrawerUIMessage } from "@/lib/ai/tools";
+import { record } from "@/lib/intake/budget";
+import { limitsFromEnv } from "@/lib/intake/limits";
+import { chatDailyLimit, isDeveloper, limitsAreOff } from "@/lib/usage";
+import { canChat } from "@/lib/usage-rules";
 
 export const maxDuration = 60;
 
@@ -15,10 +19,30 @@ export async function POST(req: Request) {
   const body = (await req.json()) as { id: string; messages: DrawerUIMessage[]; model?: string; timeZone?: string };
   const { id, messages } = body;
   const hasKey = Boolean(process.env.OPENAI_API_KEY);
-  const choice = MODELS.find((m) => m.id === body.model) ?? MODELS.find((m) => m.id === DEFAULT_MODEL_ID)!;
+  const fallback = MODELS.find((m) => m.id === DEFAULT_MODEL_ID)!;
+  const asked = MODELS.find((m) => m.id === body.model) ?? fallback;
+  const choice = asked.developerOnly && !isDeveloper(repo) ? fallback : asked;
   const useDemo = choice.provider === "demo" || !hasKey;
 
-  await repo.track("chat_sent", { demo: useDemo });
+  // Tool answers continue the same turn, so only a person's own message counts as one.
+  const isNewMessage = messages[messages.length - 1]?.role === "user";
+  if (isNewMessage && !useDemo && !(await limitsAreOff(repo))) {
+    let used: number, spent: number;
+    try {
+      [used, spent] = await Promise.all([repo.chatMessagesToday(), repo.aiSpendToday()]);
+    } catch (e) {
+      // Can't read the limits, so don't spend: an outage mustn't become an open-ended bill.
+      console.error("[chat] couldn't read limits", e);
+      return Response.json({ error: "The stylist can't check your allowance right now. Please try again shortly.", code: "chat_unavailable" }, { status: 503 });
+    }
+    if (!canChat({ used, limit: chatDailyLimit(), limitsOff: false })) {
+      return Response.json({ error: "You've used today's messages.", code: "chat_limit" }, { status: 429 });
+    }
+    if (spent >= limitsFromEnv().dailyBudget) {
+      return Response.json({ error: "The stylist is resting until tomorrow. Please try again then.", code: "chat_budget" }, { status: 429 });
+    }
+  }
+  if (isNewMessage) await repo.track("chat_sent", { demo: useDemo });
   const [profile, items] = await Promise.all([repo.getProfile(), repo.listItems({})]);
   const tools = createTools(repo, profile);
   const allTools: ToolSet = useDemo
@@ -37,6 +61,12 @@ export async function POST(req: Request) {
     messages: await convertToModelMessages(messages),
     tools: allTools,
     stopWhen: isStepCount(8),
+    onEnd: async ({ totalUsage }) => {
+      if (useDemo || !choice.usdPerM) return;
+      // Web search calls ($0.01 each) aren't included: the usage totals don't report them.
+      const usd = ((totalUsage.inputTokens ?? 0) * choice.usdPerM.input + (totalUsage.outputTokens ?? 0) * choice.usdPerM.output) / 1e6;
+      await record(repo, "chat", usd);
+    },
     providerOptions: useDemo
       ? undefined
       : { openai: { reasoningEffort: "low", reasoningSummary: "auto" } satisfies OpenAILanguageModelResponsesOptions },

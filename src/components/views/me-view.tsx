@@ -8,6 +8,7 @@ import { GarmentImage } from "@/components/drawer/item-card";
 import { toast } from "sonner";
 import { Field, MultiChips } from "@/components/drawer/attribute-picker";
 import { Button } from "@/components/ui/button";
+import { DeveloperMenu, UsageCard } from "@/components/usage/usage";
 import { PageHeader } from "@/components/ui/page-header";
 import { Segmented } from "@/components/ui/segmented";
 import { deleteItem, useItems, useProfile } from "@/lib/hooks";
@@ -39,14 +40,7 @@ function ProfileForm({ data, onSaved }: { data: NonNullable<ReturnType<typeof us
           <Status ok={data.ai} label={data.ai ? "AI connected" : "AI in demo mode"} />
         </div>
 
-        {data.studio && (
-          <div className="rounded-[22px] bg-surface p-4">
-            <p className="text-[14px] font-medium">Studio shots</p>
-            <p className="text-[12.5px] text-muted">
-              {Math.max(0, data.studio.allowance - data.studio.used)} of {data.studio.allowance} free shots left. After that, pieces use your own photo.
-            </p>
-          </div>
-        )}
+        <UsageCard />
 
         <SampleItems />
         <MissingPhotos />
@@ -135,6 +129,8 @@ function ProfileForm({ data, onSaved }: { data: NonNullable<ReturnType<typeof us
             <LogOut className="size-4" /> Sign out
           </Button>
         )}
+
+        <DeveloperMenu />
 
         {data.supabase && <DeleteAccount />}
 

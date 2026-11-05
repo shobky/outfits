@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node
 import path from "node:path";
 import type { UIMessage } from "ai";
 import type { ChatSession, IntakeBatch, IntakeGroup, Item, Outfit, Profile, WishlistItem } from "../types";
+import { startOfDay } from "../usage-rules";
 import { filterItems, wearPatch } from "./filters";
 import { DEMO_USER_ID, seedItems, seedOutfits, seedProfile, seedWishlist } from "./demo-seed";
 import type { Repo } from "./repo";
@@ -15,7 +16,7 @@ interface Store {
   chats: Map<string, { session: ChatSession; messages: UIMessage[] }>;
   intakeBatches: IntakeBatch[];
   intakeGroups: IntakeGroup[];
-  aiSpend: { kind: "vision" | "studio"; usd: number; at: string }[];
+  aiSpend: { kind: "vision" | "studio" | "chat"; usd: number; at: string }[];
 }
 /**
  * Local mode persists to `.data/` (gitignored) so your closet survives restarts
@@ -191,6 +192,9 @@ const repo: Repo = {
   async studioShotsUsed() {
     return store().aiSpend.filter((s) => s.kind === "studio").length;
   },
+  async chatMessagesToday() {
+    return 0; // Local mode only ever runs one person, usually on the free demo stylist.
+  },
   async recordAiSpend(kind, usd) {
     store().aiSpend.push({ kind, usd, at: ts() });
   },
@@ -206,7 +210,7 @@ const repo: Repo = {
     return { batches: newestFirst(store().intakeBatches), groups: newestFirst(store().intakeGroups.filter((g) => g.status !== "dismissed")) };
   },
   async countIntakePhotosToday() {
-    const since = new Date(Date.now() - 864e5).toISOString();
+    const since = startOfDay();
     return store().intakeBatches.filter((b) => b.created_at >= since).reduce((n, b) => n + b.photos.length, 0);
   },
   async createIntakeBatch(photos) {
