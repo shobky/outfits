@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { mutate } from "swr";
 import { GarmentImage } from "@/components/drawer/item-card";
 import { OutfitBoard } from "@/components/outfit/outfit-board";
+import { TryOnButton } from "@/components/tryon/try-on";
 import { Button } from "@/components/ui/button";
 import type { VisualItem } from "@/lib/ai/tools";
 import type { Occasion } from "@/lib/taxonomy";
@@ -140,6 +141,7 @@ export function OutfitCard({ outfit }: { outfit: OutfitResult }) {
             {worn ? <Check className="size-3.5" /> : <CalendarCheck className="size-3.5" />}
             {worn ? "Logged today" : "Wore it today"}
           </Button>
+          <TryOnButton itemIds={items.map((i) => i.id)} />
         </div>
         <div className="no-scrollbar -mx-1 flex gap-1.5 overflow-x-auto px-1">
           {items.map((i) => (

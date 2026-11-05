@@ -30,6 +30,8 @@ export interface Item {
   image_url: string | null; // processed cut-out (transparent PNG/WebP)
   original_image_url: string | null;
   images: ItemImage[]; // back / detail / worn shots
+  /** The main picture was rebuilt by AI from a photo of it being worn, so details may be guessed. */
+  reconstructed?: boolean;
   description: string | null; // AI-written, used for styling context
   notes: string | null;
   status: ItemStatus;
@@ -104,6 +106,7 @@ export interface Profile {
   currency: string;
   notes: string | null;
   /** Developer switch. The app ignores it unless the address is in ALLOWED_EMAILS. */
+  try_on_photo_url?: string | null;
   limits_off?: boolean;
   /** Developer switches for premium features. Ignored unless the address is in ALLOWED_EMAILS. */
   dev_features?: string[];
@@ -161,8 +164,11 @@ export interface IntakeBatch {
   user_id: string;
   photos: string[];
   status: "analyzing" | "processing" | "done" | "failed";
+  kind?: "closet" | "worn";
   error: string | null;
   rejected: { url: string; reason: string }[];
+  /** Pieces in a worn photo the AI recognised as already owned. */
+  matched?: { name: string; item_id: string }[];
   cost_usd: number;
   created_at: string;
   updated_at: string;
@@ -174,6 +180,8 @@ export interface IntakeGroup {
   batch_id: string;
   user_id: string;
   status: IntakeGroupStatus;
+  /** Came from a photo of the garment being worn. */
+  worn?: boolean;
   step: string | null;
   views: IntakeView[];
   draft: Pick<ItemInput, "name" | "category" | "subcategory" | "colors" | "pattern" | "material" | "fit" | "seasons" | "occasions" | "formality" | "warmth" | "brand" | "size" | "notes">;
@@ -191,3 +199,13 @@ export interface IntakeGroup {
 }
 
 export type NewIntakeGroup = Omit<IntakeGroup, "id" | "user_id" | "created_at" | "updated_at">;
+
+export type AiSpendKind = "vision" | "studio" | "chat" | "try_on";
+
+export interface AdminOverview {
+  people: { id: string; email: string | null; joined: string; last_seen: string | null; pieces: number; spend_total: number; spend_today: number; features: string[]; invite_code: string | null; member: boolean }[];
+  invites: { code: string; note: string | null; max_uses: number; used_count: number; created_at: string }[];
+  spend: { kind: string; today: number; week: number; total: number; calls: number }[];
+  health: { users: number; median_pieces: number; shop_taps: number; old_enough: number; back_in_week_2: number };
+  flags: { inviteOnly: boolean; studioEnabled: boolean; dailyBudget: number; freeShots: number; chatLimit: number };
+}

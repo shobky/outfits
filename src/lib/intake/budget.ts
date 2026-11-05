@@ -1,6 +1,7 @@
 import "server-only";
 import { isListedEmail } from "../access";
 import type { Repo } from "../data/repo";
+import type { AiSpendKind } from "../types";
 import { limitsAreOff } from "../usage";
 import { decideStudio, limitsFromEnv, type Decision } from "./limits";
 
@@ -28,6 +29,6 @@ export async function canReadPhotos(repo: Repo) {
   }
 }
 
-export async function record(repo: Repo, kind: "vision" | "studio" | "chat", usd: number) {
+export async function record(repo: Repo, kind: AiSpendKind, usd: number) {
   await repo.recordAiSpend(kind, usd).catch((e) => console.error("[budget] spend not recorded", e));
 }

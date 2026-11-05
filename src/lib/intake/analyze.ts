@@ -61,14 +61,13 @@ async function thumbnail(input: Buffer) {
   return sharp(input).autoOrient().resize(768, 768, { fit: "inside", withoutEnlargement: true }).flatten({ background: "#ffffff" }).jpeg({ quality: 72 }).toBuffer();
 }
 
-export async function analyzePhotos(photos: Buffer[], ai: Exclude<AIAccess, { source: "none" }>): Promise<{ analysis: Analysis; usd: number }> {
-  const thumbs = await Promise.all(photos.map(thumbnail));
+async function callVision<T>(images: { label: string; data: Buffer }[], prompt: string, shape: z.ZodType<T>, ai: Exclude<AIAccess, { source: "none" }>) {
   const modelId = await ai.pickModel(VISION_MODEL(), true);
   let streamError: unknown;
   // Streamed because ChatGPT plan usage refuses anything else.
   const result = streamText({
     model: ai.provider(modelId),
-    output: Output.object({ schema }),
+    output: Output.object({ schema: shape }),
     maxRetries: ai.maxRetries,
     providerOptions: { openai: ai.options },
     onError: ({ error }) => {
@@ -79,9 +78,9 @@ export async function analyzePhotos(photos: Buffer[], ai: Exclude<AIAccess, { so
       {
         role: "user",
         content: [
-          { type: "text", text: PROMPT },
-          ...thumbs.flatMap((data, i) => [
-            { type: "text" as const, text: `Photo ${i}:` },
+          { type: "text", text: prompt },
+          ...images.flatMap(({ label, data }) => [
+            { type: "text" as const, text: label },
             { type: "file" as const, mediaType: "image/jpeg", data },
           ]),
         ],
@@ -94,7 +93,50 @@ export async function analyzePhotos(photos: Buffer[], ai: Exclude<AIAccess, { so
   });
   // A plan's usage isn't priced per token, so it costs nothing to report here.
   const usd = ai.source === "plan" ? 0 : ((usage.inputTokens ?? 0) * USD_PER_M.input + (usage.outputTokens ?? 0) * USD_PER_M.output) / 1e6;
-  return { analysis: sanitize(output, photos.length), usd };
+  return { output: output as T, usd };
+}
+
+export async function analyzePhotos(photos: Buffer[], ai: Exclude<AIAccess, { source: "none" }>): Promise<{ analysis: Analysis; usd: number }> {
+  const thumbs = await Promise.all(photos.map(thumbnail));
+  const { output, usd } = await callVision(thumbs.map((data, i) => ({ label: `Photo ${i}:`, data })), PROMPT, schema, ai);
+  return { analysis: sanitize(output as Analysis, photos.length), usd };
+}
+
+const wornSchema = z.object({
+  pieces: z.array(
+    z.object({
+      name: z.string().describe("Short natural name, e.g. 'Blue patterned short-sleeve shirt'"),
+      category: z.enum(Object.keys(CATEGORIES) as [Category, ...Category[]]),
+      subcategory: z.string().describe(`One of: ${Object.values(CATEGORIES).flat().join(", ")}`),
+      colors: z.array(z.enum(Object.keys(COLORS) as [string, ...string[]])).min(1).max(3).describe("Dominant first"),
+      pattern: z.enum(PATTERNS),
+      material: z.enum(MATERIALS).nullable(),
+      fit: z.enum(FITS).nullable(),
+      seasons: z.array(z.enum(SEASONS)).min(1),
+      occasions: z.array(z.enum(OCCASIONS)).min(1),
+      formality: z.number().int(),
+      warmth: z.number().int(),
+      brand: z.string().nullable().describe("Only if a logo or label is clearly readable"),
+      description: z.string().describe("One sentence a stylist would use"),
+      facts: z.string().describe("Exact visible facts for a retoucher: colours, print, closures, pockets, and what is hidden. Be specific about shoe type. 2-3 short lines."),
+      confidence: z.number().describe("0 to 1. How clearly this piece can be seen"),
+      match_item_id: z.string().nullable().describe("The id from the wardrobe list if this is clearly that same piece, otherwise null. When unsure, use null"),
+    }),
+  ),
+  question: z.string().nullable().describe("Only if there's something the owner must clear up, e.g. two people are visible"),
+});
+export type WornAnalysis = z.infer<typeof wornSchema>;
+
+/** Which pieces someone is wearing in one photo, checked against what they already own. */
+export async function analyzeWorn(photo: Buffer, closet: { id: string; name: string; type: string; colors: string[] }[], ai: Exclude<AIAccess, { source: "none" }>) {
+  const prompt = `This photo shows someone wearing clothes. List each separate piece they're wearing that can be clearly seen: tops, outerwear, bottoms, footwear, and visible accessories such as hats, bags or belts. Skip anything mostly hidden. Ignore the background and anyone else in the frame. Don't describe the person.
+
+Their wardrobe already has these pieces. If a piece is clearly one of them, give its id in match_item_id. Only match when colour, type and details all agree:
+${closet.length ? JSON.stringify(closet) : "(empty)"}
+
+Use only the allowed values.`;
+  const { output, usd } = await callVision([{ label: "Photo:", data: await thumbnail(photo) }], prompt, wornSchema, ai);
+  return { analysis: output as WornAnalysis, usd };
 }
 
 /** The model's numbers aren't trusted: each photo lands in exactly one place, and values stay in range. */

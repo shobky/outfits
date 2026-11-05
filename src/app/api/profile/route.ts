@@ -27,6 +27,7 @@ export async function PATCH(req: Request) {
   // Only /api/dev changes these, after checking who's asking.
   delete patch.limits_off;
   delete patch.dev_features;
+  delete patch.try_on_photo_url; // /api/try-on/photo checks the file is theirs
   if (patch.home_city) {
     const g = await geocode(patch.home_city).catch(() => null);
     if (g) Object.assign(patch, { latitude: g.lat, longitude: g.lon, country: patch.country || g.country || null });

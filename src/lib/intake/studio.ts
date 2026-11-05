@@ -26,20 +26,30 @@ Centre it and make it fill about 80% of the square, with equal space on all side
 Background must be fully transparent. No person, hanger, surface, props, text or cast shadow.`;
 }
 
+function wornPrompt(name: string, category: string, facts: string) {
+  const display = category === "footwear" ? "Show them as a neat pair, side by side, angled slightly." : category === "bottom" ? "Lay them out straight, front facing, as a flat lay." : category === "accessory" ? "Show it on its own, centred, front facing." : "Show it hanging straight, front facing, with natural shape, as if on an invisible mannequin.";
+  return `The photo shows a person wearing clothes. Make a professional e-commerce product photo of ONLY this piece: ${name}.
+Facts about this exact item, which must stay true:
+${facts}
+Remove the person completely: no face, skin, hands, hair or body. Remove every other garment, even where it touches or overlaps this one, and don't treat another garment as part of this one.
+Keep its real colour, material, print and details from the photo. Where it's hidden, complete it plainly and conservatively. Don't invent logos, text or decoration.
+${display} Soft even studio lighting. Centre it and make it fill about 80% of the square, with equal space on all sides and nothing cropped.
+Background must be fully transparent. No hanger, surface, props, text or cast shadow.`;
+}
+
 /** Studio shots need the API key: ChatGPT plan usage has no image generation, and plan users mustn't spend the key. */
 export const studioEnabled = (owner: string) => resolveAI(owner).source === "key";
 
-async function callEdit(photo: Buffer, facts: string, view: string, references: Buffer[]) {
+export async function callImageEdit(opts: { prompt: string; images: Buffer[]; size: "1024x1024" | "1024x1536"; background: "transparent" | "opaque"; format: "png" | "jpeg" }) {
   const form = new FormData();
   form.append("model", IMAGE_MODEL());
-  form.append("prompt", prompt(facts, view, references.length));
-  // Order matters: the prompt calls the first image the one to edit.
-  form.append("image[]", new Blob([new Uint8Array(photo)], { type: "image/jpeg" }), "photo.jpg");
-  references.forEach((r, i) => form.append("image[]", new Blob([new Uint8Array(r)], { type: "image/jpeg" }), `reference-${i + 1}.jpg`));
-  form.append("size", "1024x1024");
+  form.append("prompt", opts.prompt);
+  // Order matters: the prompts describe the images by position.
+  opts.images.forEach((b, i) => form.append("image[]", new Blob([new Uint8Array(b)], { type: "image/jpeg" }), `image-${i + 1}.jpg`));
+  form.append("size", opts.size);
   form.append("quality", "medium");
-  form.append("output_format", "png");
-  form.append("background", "transparent");
+  form.append("output_format", opts.format);
+  form.append("background", opts.background);
   const res = await fetch("https://api.openai.com/v1/images/edits", {
     method: "POST",
     headers: { authorization: `Bearer ${process.env.OPENAI_API_KEY}` },
@@ -77,7 +87,7 @@ function explain(e: unknown) {
 }
 
 /** Returns a framed WebP ready to store. Throws with a reason the owner can read. */
-export async function restyle(photo: Buffer, opts: { rotation: number; facts: string; view: string; references?: { photo: Buffer; rotation: number }[] }) {
+export async function restyle(photo: Buffer, opts: { rotation: number; facts: string; view: string; references?: { photo: Buffer; rotation: number }[]; worn?: { name: string; category: string } }) {
   const upright = await uprightJpeg(photo, opts.rotation);
   // References are smaller: they only need to show detail, and input images are billed by size.
   const references = await Promise.all((opts.references ?? []).map((r) => uprightJpeg(r.photo, r.rotation, 1024)));
@@ -86,7 +96,13 @@ export async function restyle(photo: Buffer, opts: { rotation: number; facts: st
   for (let attempt = 0; attempt < ATTEMPTS; attempt++) {
     if (attempt) await sleep(2000 * attempt);
     try {
-      const { image, usd: cost } = await callEdit(upright, opts.facts, opts.view, references);
+      const { image, usd: cost } = await callImageEdit({
+        prompt: opts.worn ? wornPrompt(opts.worn.name, opts.worn.category, opts.facts) : prompt(opts.facts, opts.view, references.length),
+        images: [upright, ...references],
+        size: "1024x1024",
+        background: "transparent",
+        format: "png",
+      });
       usd += cost;
       if (await isCleanCutout(image)) return { data: await frameGarment(image), usd };
       last = new Error("The result didn't come back as a clean cut-out");

@@ -8,10 +8,11 @@ import { ItemForm, type Draft } from "@/components/drawer/item-form";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { Sheet } from "@/components/ui/sheet";
-import { PhotoAllowanceNote } from "@/components/usage/usage";
+import { PhotoAllowanceNote, useUsage } from "@/components/usage/usage";
 import { isStuck } from "@/lib/hooks";
 import type { IntakeBatch, IntakeGroup } from "@/lib/types";
 import { api, cn } from "@/lib/utils";
+import { WornPicker } from "./worn-picker";
 import { isWorking, MAX_PHOTOS, useIntakeQueue, type PendingUpload } from "./intake-provider";
 
 const coverOf = (g: IntakeGroup) => {
@@ -29,6 +30,7 @@ async function act(g: IntakeGroup, action: string, draft?: Draft) {
 
 export function AddView() {
   const { uploads, data, addFiles, retryUpload, discardUpload, refresh } = useIntakeQueue();
+  const { data: usage } = useUsage();
   const fileRef = useRef<HTMLInputElement>(null);
   const camRef = useRef<HTMLInputElement>(null);
   const [drag, setDrag] = useState(false);
@@ -76,6 +78,7 @@ export function AddView() {
             <Button size="lg" variant="surface" onClick={() => camRef.current?.click()}>
               <Camera className="size-4" /> Take photo
             </Button>
+            {usage?.features.includes("worn_extract") && <WornPicker onPick={(file) => addFiles([file], "worn")} />}
           </div>
           <p className="text-xs text-faint">You can leave this screen. It carries on in the background.</p>
           <PhotoAllowanceNote />
@@ -104,6 +107,16 @@ export function AddView() {
         {brokenBatches.map((b) => (
           <BrokenBatch key={b.id} batch={b} onDone={refresh} />
         ))}
+
+        {batches.some((b) => b.matched?.length) && (
+          <div className="space-y-1 rounded-[22px] bg-surface p-4 text-[13px] text-muted">
+            {batches.flatMap((b) => (b.matched ?? []).map((m) => (
+              <p key={`${b.id}-${m.item_id}`} className="flex items-center gap-2">
+                <Check className="size-3.5 shrink-0" /> Already in your drawer: {m.name}
+              </p>
+            )))}
+          </div>
+        )}
 
         {rejected.length > 0 && (
           <div className="space-y-1 rounded-[22px] bg-surface p-4 text-[13px] text-muted">
@@ -332,6 +345,11 @@ function ReviewPiece({ group: g, onClose, onNext }: { group: IntakeGroup; onClos
             <RotateCcw className="size-3.5" /> Retry
           </Button>
         </div>
+      )}
+      {g.worn && (
+        <p className="flex gap-2 rounded-2xl bg-surface p-3 text-[13px] text-muted">
+          <Sparkles className="mt-0.5 size-4 shrink-0 text-accent" /> Rebuilt by AI from your photo, so details may differ from the real piece. Check it before adding.
+        </p>
       )}
       {g.question && (
         <p className="flex gap-2 rounded-2xl bg-surface p-3 text-[13.5px]">

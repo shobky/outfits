@@ -1,7 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { UIMessage } from "ai";
-import type { ChatSession, IntakeBatch, IntakeGroup, Item, Outfit, Profile, WishlistItem } from "../types";
+import type { AdminOverview, ChatSession, IntakeBatch, IntakeGroup, Item, Outfit, Profile, WishlistItem } from "../types";
 import { startOfDay } from "../usage-rules";
 import { filterItems, wearPatch } from "./filters";
 import type { Repo } from "./repo";
@@ -154,6 +154,23 @@ export function supabaseRepo(sb: SupabaseClient, userId: string, email: string |
       if (error) throw new Error(error.message);
       return count ?? 0;
     },
+    async tryOnsToday() {
+      const { count, error } = await sb.from("ai_spend").select("id", { count: "exact", head: true }).eq("kind", "try_on").gte("created_at", startOfDay());
+      if (error) throw new Error(error.message);
+      return count ?? 0;
+    },
+    async adminOverview() {
+      return must(await sb.rpc("admin_overview")) as Omit<AdminOverview, "flags">;
+    },
+    async adminSetFeatures(person, features) {
+      must(await sb.rpc("admin_set_features", { person, wanted: features }));
+    },
+    async adminCreateInvite(code, note, maxUses) {
+      must(await sb.rpc("admin_create_invite", { new_code: code, new_note: note, uses: maxUses }));
+    },
+    async adminRevokeInvite(code) {
+      must(await sb.rpc("admin_revoke_invite", { old_code: code }));
+    },
     async memberFeatures() {
       const row = must(await sb.from("member_features").select("features").eq("user_id", userId).maybeSingle()) as { features: string[] } | null;
       return row?.features ?? [];
@@ -191,8 +208,8 @@ export function supabaseRepo(sb: SupabaseClient, userId: string, email: string |
       const rows = must(await sb.from("intake_batches").select("photos").gte("created_at", startOfDay())) as { photos: string[] }[];
       return rows.reduce((n, r) => n + r.photos.length, 0);
     },
-    async createIntakeBatch(photos) {
-      return must(await sb.from("intake_batches").insert({ photos }).select().single()) as IntakeBatch;
+    async createIntakeBatch(photos, kind = "closet") {
+      return must(await sb.from("intake_batches").insert({ photos, kind }).select().single()) as IntakeBatch;
     },
     async updateIntakeBatch(id, patch) {
       must(await sb.from("intake_batches").update({ ...patch, updated_at: new Date().toISOString() }).eq("id", id));

@@ -2,10 +2,11 @@ import "server-only";
 import type { Repo } from "../data/repo";
 import type { IntakeBatch, IntakeGroup, IntakeView, ItemImage, ItemInput } from "../types";
 import { explainAIError, resolveAI } from "../ai/provider";
-import { analyzePhotos, type AnalyzedGroup } from "./analyze";
+import { analyzePhotos, analyzeWorn, type AnalyzedGroup } from "./analyze";
 import { hasFeature } from "../features";
 import { canReadPhotos, checkStudio, record } from "./budget";
 import { pickReferences } from "./references";
+import { sortWornPieces } from "./worn-rules";
 import { frameOriginal, restyle, studioEnabled } from "./studio";
 
 /** Below this the piece waits for the owner instead of going straight into the drawer. */
@@ -67,8 +68,49 @@ async function inPool<T>(items: T[], worker: (item: T) => Promise<void>) {
   );
 }
 
+/** One photo of someone wearing clothes. Every new piece waits for review: its picture is reconstructed. */
+async function runWornBatch(repo: Repo, batch: IntakeBatch) {
+  const ai = resolveAI(repo.userId);
+  if (ai.source !== "key") throw new Error("This needs AI that isn't available");
+  if (!(await canReadPhotos(repo))) throw new Error("The daily AI budget has been reached. Please try again tomorrow");
+  const photo = await repo.readImage(batch.photos[0]);
+  const closetItems = await repo.listItems({});
+  const closet = closetItems.slice(0, 200).map((i) => ({ id: i.id, name: i.name, type: `${i.category}/${i.subcategory}`, colors: i.colors }));
+  const { analysis, usd } = await analyzeWorn(photo, closet, ai);
+  if (usd) await record(repo, "vision", usd);
+  const { matched, fresh } = sortWornPieces(analysis.pieces, new Set(closet.map((c) => c.id)));
+  const clamp = (n: number) => Math.min(5, Math.max(1, Math.round(n)));
+  const groups = await repo.createIntakeGroups(
+    fresh.map((p) => ({
+      batch_id: batch.id,
+      status: "queued" as const,
+      worn: true,
+      step: "Waiting its turn",
+      views: [{ photo_url: batch.photos[0], view: "front" as const, rotation: 0, result_url: null, ai: false, error: null }],
+      draft: draftOf({ ...p, formality: clamp(p.formality), warmth: clamp(p.warmth) } as unknown as AnalyzedGroup),
+      description: p.description || null,
+      facts: p.facts || null,
+      confidence: p.confidence,
+      question: analysis.question,
+      note: null,
+      error: null,
+      item_id: null,
+      cost_usd: 0,
+    })),
+  );
+  await repo.updateIntakeBatch(batch.id, {
+    status: "processing",
+    cost_usd: usd,
+    matched: matched.map((m) => ({ name: closetItems.find((i) => i.id === m.match_item_id)?.name ?? m.name, item_id: m.match_item_id! })),
+    rejected: analysis.pieces.length ? [] : [{ url: batch.photos[0], reason: "We couldn't see any clothes clearly" }],
+  });
+  await inPool(groups, (g) => runGroup(repo, g));
+  await repo.updateIntakeBatch(batch.id, { status: "done" });
+}
+
 export async function runBatch(repo: Repo, batch: IntakeBatch) {
   try {
+    if (batch.kind === "worn") return await runWornBatch(repo, batch);
     const photos = await Promise.all(batch.photos.map((url) => repo.readImage(url)));
     const ai = resolveAI(repo.userId);
     // Budgets guard the owner's key. A person's own plan has its own limits.
@@ -131,7 +173,8 @@ export async function runGroup(repo: Repo, group: IntakeGroup) {
       const decision = await checkStudio(repo);
       if (!decision.ok) {
         note = decision.note;
-        v.result_url = await store(repo, await frameOriginal(photo, v.rotation));
+        // A worn photo shows the whole person, so it's never used as the picture of a garment.
+        if (!group.worn) v.result_url = await store(repo, await frameOriginal(photo, v.rotation));
         continue;
       }
       await repo.updateIntakeGroup(group.id, { step: `Styling the ${v.view} of ${label}` });
@@ -139,7 +182,7 @@ export async function runGroup(repo: Repo, group: IntakeGroup) {
       const references = combine
         ? (await Promise.all(pickReferences(views, v).map(async (r) => ({ photo: await repo.readImage(r.photo_url).catch(() => null), rotation: r.rotation })))).flatMap((r) => (r.photo ? [{ photo: r.photo, rotation: r.rotation }] : []))
         : [];
-      const { data, usd } = await restyle(photo, { rotation: v.rotation, facts: group.facts ?? group.description ?? label, view: v.view, references });
+      const { data, usd } = await restyle(photo, { rotation: v.rotation, facts: group.facts ?? group.description ?? label, view: v.view, references, worn: group.worn ? { name: label, category: group.draft.category } : undefined });
       cost += usd;
       await record(repo, "studio", usd);
       v.result_url = await store(repo, data);
@@ -151,7 +194,7 @@ export async function runGroup(repo: Repo, group: IntakeGroup) {
       if (wasted) await record(repo, "studio", wasted);
       v.error = reason(e);
       // Keep the real photo visible so the piece is usable while a retry is pending.
-      if (!v.result_url) {
+      if (!v.result_url && !group.worn) {
         const photo = await repo.readImage(v.photo_url).catch(() => null);
         if (photo) v.result_url = await store(repo, await frameOriginal(photo, v.rotation)).catch(() => null);
       }
@@ -159,7 +202,7 @@ export async function runGroup(repo: Repo, group: IntakeGroup) {
   }
 
   const failed = views.find((v) => v.error);
-  const needsOwner = failed || !group.draft.name || group.question || group.confidence < AUTO_ADD_CONFIDENCE;
+  const needsOwner = group.worn || failed || !group.draft.name || group.question || group.confidence < AUTO_ADD_CONFIDENCE;
   let itemId = group.item_id;
   let status: IntakeGroup["status"] = "review";
   if (itemId) {
@@ -192,13 +235,20 @@ function itemPhotos(views: IntakeView[]): Pick<ItemInput, "image_url" | "origina
   return { image_url: front.result_url, original_image_url: front.photo_url, images };
 }
 
-export function addItem(repo: Repo, group: Pick<IntakeGroup, "draft" | "views" | "description">) {
+export async function addItem(repo: Repo, group: Pick<IntakeGroup, "draft" | "views" | "description" | "worn">) {
+  const base = { ...group.draft, description: group.description, status: "active" as const, in_laundry: false, is_favorite: false };
+  if (!group.worn) return repo.createItem({ ...base, ...itemPhotos(group.views) } as ItemInput);
+  // Pieces from one photo each get their own copy of it, so deleting one can't break another.
+  const source = group.views[0];
+  const copy = await repo
+    .readImage(source.photo_url)
+    .then((b) => repo.uploadImage(new Blob([new Uint8Array(b)], { type: "image/jpeg" }), "jpg"))
+    .catch((e) => (console.warn("[intake] source photo not copied", e), null));
   return repo.createItem({
-    ...group.draft,
-    ...itemPhotos(group.views),
-    description: group.description,
-    status: "active",
-    in_laundry: false,
-    is_favorite: false,
+    ...base,
+    image_url: source.result_url,
+    original_image_url: null,
+    images: copy ? [{ url: copy, view: "worn" as const }] : [],
+    reconstructed: true,
   } as ItemInput);
 }

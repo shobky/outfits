@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { mutate } from "swr";
 import { ProfileLink } from "@/components/app-nav";
 import { OutfitBoard } from "@/components/outfit/outfit-board";
+import { TryOnButton } from "@/components/tryon/try-on";
 import { Empty } from "@/components/ui/empty";
 import { PageHeader } from "@/components/ui/page-header";
 import { markWorn, useOutfits } from "@/lib/hooks";
@@ -64,6 +65,7 @@ export function OutfitsView() {
                       {unavailable && " · something's in the wash"}
                     </p>
                     </div>
+                    <TryOnButton compact itemIds={items.map((i) => i.id)} />
                     <button
                       className="grid size-8 shrink-0 place-items-center rounded-full text-muted hover:bg-surface-2"
                       aria-label="Wore it today"

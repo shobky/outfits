@@ -1,5 +1,5 @@
 import type { UIMessage } from "ai";
-import type { ChatSession, IntakeBatch, IntakeGroup, Item, ItemFilters, ItemInput, NewIntakeGroup, Outfit, Profile, WishlistItem } from "../types";
+import type { AdminOverview, AiSpendKind, ChatSession, IntakeBatch, IntakeGroup, Item, ItemFilters, ItemInput, NewIntakeGroup, Outfit, Profile, WishlistItem } from "../types";
 
 /**
  * Data access layer. Two implementations:
@@ -51,7 +51,12 @@ export interface Repo {
   aiSpendToday(): Promise<number>;
   /** How many studio shots this user has had. */
   studioShotsUsed(): Promise<number>;
-  recordAiSpend(kind: "vision" | "studio" | "chat", usd: number): Promise<void>;
+  recordAiSpend(kind: AiSpendKind, usd: number): Promise<void>;
+  tryOnsToday(): Promise<number>;
+  adminOverview(): Promise<Omit<AdminOverview, "flags">>;
+  adminSetFeatures(userId: string, features: string[]): Promise<void>;
+  adminCreateInvite(code: string, note: string | null, maxUses: number): Promise<void>;
+  adminRevokeInvite(code: string): Promise<void>;
   /** This user's counted stylist messages since midnight UTC. */
   chatMessagesToday(): Promise<number>;
   /** Premium features the owner has granted this person. */
@@ -63,7 +68,7 @@ export interface Repo {
 
   listIntake(): Promise<{ batches: IntakeBatch[]; groups: IntakeGroup[] }>;
   countIntakePhotosToday(): Promise<number>;
-  createIntakeBatch(photos: string[]): Promise<IntakeBatch>;
+  createIntakeBatch(photos: string[], kind?: "closet" | "worn"): Promise<IntakeBatch>;
   updateIntakeBatch(id: string, patch: Partial<IntakeBatch>): Promise<void>;
   createIntakeGroups(groups: NewIntakeGroup[]): Promise<IntakeGroup[]>;
   getIntakeGroup(id: string): Promise<IntakeGroup | null>;

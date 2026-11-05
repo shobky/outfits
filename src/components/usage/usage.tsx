@@ -162,6 +162,9 @@ export function DeveloperMenu() {
           onToggle={() => change({ feature: f, on: !data.features.includes(f) }, (n) => `${FEATURES[f].label} ${n.features.includes(f) ? "on" : "off"}`)}
         />
       ))}
+      <Link href="/admin" className="inline-flex h-9 items-center rounded-full border border-border px-4 text-[13px] font-medium">
+        Open dashboard
+      </Link>
       {data.spentToday !== null && <p className="text-[12.5px] text-muted">AI spend today: ${data.spentToday.toFixed(2)}. Web searches aren&apos;t included. Each person counts for at most $2 of this.</p>}
     </section>
   );

@@ -36,7 +36,10 @@
 `## intake_batches, intake_groups
 `Background uploads. A batch is one upload of up to 8 photos; a group is one garment found in it, with its own row so parallel work can't overwrite itself. A group becomes an \`items\` row when added. The server writes progress here, so closing the app loses nothing once photos have uploaded.
 `
-`## Adding filters
+`## Premium
+`member_features` grants features per person, readable but not writable by them. `profiles.dev_features` and `limits_off` are ignored unless the address is in `ALLOWED_EMAILS`. `items.reconstructed` marks a picture rebuilt by AI from a worn photo. `profiles.try_on_photo_url` is the person's own photo, kept until they remove it. `admins` has no API access at all.
+
+## Adding filters
 `Filtering happens in `src/lib/data/filters.ts` (shared by both repos). Closets are small; push to SQL only if a user has >2k items.
 `
 `## Future

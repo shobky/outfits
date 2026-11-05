@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import type { UIMessage } from "ai";
-import type { ChatSession, IntakeBatch, IntakeGroup, Item, Outfit, Profile, WishlistItem } from "../types";
+import type { AiSpendKind, ChatSession, IntakeBatch, IntakeGroup, Item, Outfit, Profile, WishlistItem } from "../types";
 import { startOfDay } from "../usage-rules";
 import { filterItems, wearPatch } from "./filters";
 import { DEMO_USER_ID, seedItems, seedOutfits, seedProfile, seedWishlist } from "./demo-seed";
@@ -16,7 +16,8 @@ interface Store {
   chats: Map<string, { session: ChatSession; messages: UIMessage[] }>;
   intakeBatches: IntakeBatch[];
   intakeGroups: IntakeGroup[];
-  aiSpend: { kind: "vision" | "studio" | "chat"; usd: number; at: string }[];
+  aiSpend: { kind: AiSpendKind; usd: number; at: string }[];
+  invites: { code: string; note: string | null; max_uses: number; used_count: number; created_at: string }[];
 }
 /**
  * Local mode persists to `.data/` (gitignored) so your closet survives restarts
@@ -33,7 +34,7 @@ function load(): Store | null {
   if (!PERSIST || !existsSync(STORE_FILE)) return null;
   try {
     const raw = JSON.parse(readFileSync(STORE_FILE, "utf8")) as Persisted;
-    return { ...raw, intakeBatches: raw.intakeBatches ?? [], intakeGroups: raw.intakeGroups ?? [], aiSpend: raw.aiSpend ?? [], items: raw.items.map((i) => ({ ...i, images: i.images ?? [] })), chats: new Map(raw.chats) };
+    return { ...raw, invites: raw.invites ?? [], intakeBatches: raw.intakeBatches ?? [], intakeGroups: raw.intakeGroups ?? [], aiSpend: raw.aiSpend ?? [], items: raw.items.map((i) => ({ ...i, images: i.images ?? [] })), chats: new Map(raw.chats) };
   } catch (e) {
     console.error("[outfits] could not read .data/store.json — starting fresh", e);
     return null;
@@ -59,6 +60,7 @@ function store(): Store {
     intakeBatches: [],
     intakeGroups: [],
     aiSpend: [],
+    invites: [],
   };
   return g.__outfitsStore;
 }
@@ -192,6 +194,34 @@ const repo: Repo = {
   async studioShotsUsed() {
     return store().aiSpend.filter((s) => s.kind === "studio").length;
   },
+  async tryOnsToday() {
+    const today = ts().slice(0, 10);
+    return store().aiSpend.filter((s) => s.kind === "try_on" && s.at.startsWith(today)).length;
+  },
+  async adminOverview() {
+    const s = store();
+    return {
+      people: [{ id: DEMO_USER_ID, email: "you@this-computer", joined: ts(), last_seen: ts(), pieces: s.items.length, spend_total: s.aiSpend.reduce((n, x) => n + x.usd, 0), spend_today: 0, features: s.profile.dev_features ?? [], invite_code: null, member: true }],
+      invites: s.invites,
+      spend: [...new Set(s.aiSpend.map((x) => x.kind))].map((kind) => {
+        const rows = s.aiSpend.filter((x) => x.kind === kind);
+        const total = rows.reduce((n, x) => n + x.usd, 0);
+        return { kind, today: total, week: total, total, calls: rows.length };
+      }),
+      health: { users: 1, median_pieces: s.items.length, shop_taps: 0, old_enough: 0, back_in_week_2: 0 },
+    };
+  },
+  async adminSetFeatures(_person, features) {
+    store().profile = { ...store().profile, dev_features: features };
+  },
+  async adminCreateInvite(code, note, maxUses) {
+    const upper = code.trim().toUpperCase();
+    if (store().invites.some((i) => i.code === upper)) throw new Error("That code already exists");
+    store().invites.unshift({ code: upper, note, max_uses: Math.max(1, maxUses), used_count: 0, created_at: ts() });
+  },
+  async adminRevokeInvite(code) {
+    store().invites = store().invites.filter((i) => i.code !== code);
+  },
   async memberFeatures() {
     return []; // Local mode is a developer, whose features live on the profile.
   },
@@ -216,8 +246,8 @@ const repo: Repo = {
     const since = startOfDay();
     return store().intakeBatches.filter((b) => b.created_at >= since).reduce((n, b) => n + b.photos.length, 0);
   },
-  async createIntakeBatch(photos) {
-    const batch: IntakeBatch = { id: uid(), user_id: DEMO_USER_ID, photos, status: "analyzing", error: null, rejected: [], cost_usd: 0, created_at: ts(), updated_at: ts() };
+  async createIntakeBatch(photos, kind = "closet") {
+    const batch: IntakeBatch = { id: uid(), user_id: DEMO_USER_ID, photos, kind, matched: [], status: "analyzing", error: null, rejected: [], cost_usd: 0, created_at: ts(), updated_at: ts() };
     store().intakeBatches.unshift(batch);
     return batch;
   },
@@ -238,7 +268,7 @@ const repo: Repo = {
 };
 
 /** Wrap every mutating method so it writes the store to disk afterwards. */
-const MUTATING = ["recordAiSpend", "createIntakeBatch", "updateIntakeBatch", "createIntakeGroups", "updateIntakeGroup", "createItem", "updateItem", "deleteItem", "logWear", "createOutfit", "updateOutfit", "deleteOutfit", "createWishlist", "updateWishlist", "deleteWishlist", "updateProfile", "saveChat", "deleteChat"] as const;
+const MUTATING = ["adminSetFeatures", "adminCreateInvite", "adminRevokeInvite", "recordAiSpend", "createIntakeBatch", "updateIntakeBatch", "createIntakeGroups", "updateIntakeGroup", "createItem", "updateItem", "deleteItem", "logWear", "createOutfit", "updateOutfit", "deleteOutfit", "createWishlist", "updateWishlist", "deleteWishlist", "updateProfile", "saveChat", "deleteChat"] as const;
 for (const k of MUTATING) {
   const fn = repo[k] as (...a: unknown[]) => Promise<unknown>;
   (repo as unknown as Record<string, unknown>)[k] = async (...args: unknown[]) => {

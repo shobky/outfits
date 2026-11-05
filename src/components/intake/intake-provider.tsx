@@ -27,6 +27,7 @@ export interface PendingPhoto {
 export interface PendingUpload {
   id: string;
   photos: PendingPhoto[];
+  kind?: "closet" | "worn";
   sending: boolean;
   error?: string;
 }
@@ -34,7 +35,7 @@ export interface PendingUpload {
 interface Ctx {
   uploads: PendingUpload[];
   data: IntakeData | undefined;
-  addFiles: (files: File[]) => void;
+  addFiles: (files: File[], kind?: "closet" | "worn") => void;
   retryUpload: (id: string) => void;
   discardUpload: (id: string) => void;
   refresh: () => void;
@@ -134,7 +135,7 @@ export function IntakeProvider({ children }: { children: React.ReactNode }) {
         return;
       }
       try {
-        await api("/api/intake", "POST", { photos: ordered });
+        await api("/api/intake", "POST", { photos: ordered, kind: upload.kind });
         await reload();
         upload.photos.forEach((p) => URL.revokeObjectURL(p.preview));
         setUploads((list) => list.filter((u) => u.id !== uploadId));
@@ -146,7 +147,7 @@ export function IntakeProvider({ children }: { children: React.ReactNode }) {
   );
 
   const addFiles = useCallback(
-    (files: File[]) => {
+    (files: File[], kind?: "closet" | "worn") => {
       const images = files.filter(isImageFile);
       const skipped = files.filter((f) => !isImageFile(f));
       if (skipped.length) toast.error(`Not a photo, so it was skipped: ${skipped.map((f) => f.name).join(", ")}`);
@@ -156,6 +157,7 @@ export function IntakeProvider({ children }: { children: React.ReactNode }) {
       const upload: PendingUpload = {
         id,
         sending: true,
+        kind,
         photos: images.slice(0, MAX_PHOTOS).map((file) => ({ id: crypto.randomUUID(), file, preview: URL.createObjectURL(file), status: "waiting" })),
       };
       uploadsRef.current = [...uploadsRef.current, upload];

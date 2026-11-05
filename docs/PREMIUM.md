@@ -1,6 +1,6 @@
 # Premium features: test results and plan
 
-`multi_photo` is built and live, off by default. The rest isn't built. Status: tested on the owner's 8 worn photos, 2026-11. Lives on `feat/beta`.
+`multi_photo`, `worn_extract`, `try_on` and the `/admin` dashboard are built and live. All features are off by default. Status of the original test: tested on the owner's 8 worn photos, 2026-11. Lives on `feat/beta`.
 
 ## What the test showed
 Low-resolution screenshots (237–605 px, except one at 1170 px), `gpt-image-2.5-sunburst`, medium quality. **Test cost $0.27 in total**: about $0.02 per image, $0.033 for three photos combined, $0.0093 for the vision call. Judged by eye; only the jacket has a real reference photo.
@@ -28,10 +28,10 @@ Goal: friends can't break the bank, and the owner controls everything from one p
 
 | Flag | Feature | Cost per use |
 |---|---|---|
-| `worn_extract` | Pieces from worn photos | about $0.02 per piece |
+| `worn_extract` | Pieces from worn photos. **Built.** One photo at a time, up to 5 new pieces, always reviewed. | $0.016 per piece, $0.003 to read the photo (one run) |
 | `multi_photo` | Combine photos of one garment. **Built.** | $0.031 on the jacket with 2 close-ups, against $0.025 from one photo (one sample) |
 | `display_styles` | Hanging, neat pair, straight | about $0.02 per version |
-| `try_on` | See it on yourself | about $0.03 |
+| `try_on` | See it on yourself. **Built.** 5 a day (`TRY_ON_DAILY_LIMIT`). Previews aren't saved. | $0.037 in 15s (one run, portrait) |
 
 - **Per person, off by default.** Add `features text[]`, `studio_allowance int` and `daily_budget_usd` to a member record. The server checks them, never the browser alone.
 - **Global off switch for each feature**, so anything can be stopped at once.
@@ -44,19 +44,12 @@ on conflict (user_id) do update set features = excluded.features, updated_at = n
 ```
 
 ## Owner dashboard (`/admin`)
-Only for addresses in `ALLOWED_EMAILS`, checked on the server. Reads need a server-side role key, so the key's handling needs design first.
+Linked from the developer menu. Needs both an address in `ALLOWED_EMAILS` and a row in `public.admins`, which is added by hand so no address sits in this public repo. It works through security-definer functions that check `admins`, so no service-role key is needed on Vercel.
 
-1. **People:** who joined, pieces, last seen, spend. Toggle features and set limits per person.
-2. **Invites:** create, copy, revoke, see who used what.
-3. **Spend:** today, this week, by feature, plus the off switches.
-4. **Beta health:** week-2 return, pieces per user, shop taps (the queries in `docs/BETA.md`).
+Shows spend today, this week and by kind; week-2 return, median pieces and shop taps; people with their features; and invites to create, copy and revoke. **Not built:** per-person allowances and budgets. Off switches stay in Vercel env vars.
 
-Build order: flags and member settings → spend per feature → People and Invites → the rest. Until then, SQL does the job.
-
-## Decisions for the owner
-1. Which features to build first. Suggested: `multi_photo`, then `worn_extract`, then `try_on`.
-2. A stylist chat message cap, needed before invites.
-3. Whether a "reconstructed" label shows on AI-made pieces. Suggested: yes.
+## Decisions already made
+Build order was `multi_photo`, `worn_extract`, `try_on`. AI-made pieces carry a "rebuilt by AI" note. Chat has a daily cap.
 
 ## UI issues noted for final polish (PWA)
 Reported by the owner, not yet fixed:

@@ -24,7 +24,7 @@ function slidesOf(item: Item): Slide[] {
   return [
     { key: "front", label: "Front", view: "front", url: item.image_url },
     ...(back ? [{ key: "back", label: "Back", view: "back" as const, url: back.url }] : []),
-    ...extras.map((e, n) => ({ key: e.url, label: `Photo ${n + 1}`, view: "detail" as const, url: e.url })),
+    ...extras.map((e, n) => ({ key: e.url, label: e.view === "worn" ? "Worn photo" : `Photo ${n + 1}`, view: "detail" as const, url: e.url })),
   ];
 }
 
@@ -161,6 +161,8 @@ export function ItemPhotos({ item, onDeleteItem }: { item: Item; onDeleteItem: (
           <Plus className="size-4" /> Photo
         </button>
       </div>
+
+      {item.reconstructed && slide.view === "front" && <p className="text-center text-[12.5px] text-muted">Rebuilt by AI from a worn photo, so details may differ.</p>}
 
       {!missing && (
         <div className="flex items-center justify-center gap-1">
