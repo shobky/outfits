@@ -3,6 +3,7 @@ import { code } from "@streamdown/code";
 import { Check, Copy, Link2 } from "lucide-react";
 import { memo, useState } from "react";
 import { Streamdown } from "streamdown";
+import { stripCitationMarkers } from "@/lib/ai/citations";
 import type { DrawerUIMessage } from "@/lib/ai/tools";
 import { cn } from "@/lib/utils";
 import { AgentSteps, PROCESS_TOOLS, type StepPart } from "./agent-steps";
@@ -37,7 +38,8 @@ function toBlocks(parts: Part[], streaming: boolean): Block[] {
     if (!isStep && (p.type !== "text" || p.text)) flushWeather();
     if (p.type === "reasoning") pushStep({ kind: "reasoning", text: p.text, streaming: streaming && p.state === "streaming" });
     else if (p.type === "text") {
-      if (p.text) blocks.push({ kind: "text", text: p.text });
+      const text = stripCitationMarkers(p.text);
+      if (text) blocks.push({ kind: "text", text });
     }
     else if (p.type === "file") blocks.push({ kind: "file", url: p.url, mediaType: p.mediaType });
     else if (p.type === "source-url") blocks.push({ kind: "source", url: p.url, title: p.title });
@@ -101,7 +103,7 @@ export const Message = memo(function Message({
   }
 
   const blocks = toBlocks(message.parts, streaming);
-  const fullText = message.parts.filter((p) => p.type === "text").map((p) => p.text).join("\n\n");
+  const fullText = message.parts.filter((p) => p.type === "text").map((p) => stripCitationMarkers(p.text)).join("\n\n");
   const lastIdx = blocks.length - 1;
 
   return (

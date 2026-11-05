@@ -1,5 +1,40 @@
 import { expect, test } from "@playwright/test";
+import { stripCitationMarkers } from "../../src/lib/ai/citations";
 import { parseProductPage } from "../../src/lib/ai/product-page";
+
+test("citation markers are removed, wherever they fall in the text", () => {
+  const marker = "citeturn0search0";
+  expect(stripCitationMarkers(`Relaxed tailoring. ${marker}\n\nYour look`)).toBe("Relaxed tailoring.\n\nYour look");
+  expect(stripCitationMarkers(`One${marker} and two ${marker}.`)).toBe("One and two.");
+  expect(stripCitationMarkers("citeturn0search0turn0search1")).toBe("");
+  // Still streaming: the rest of the marker hasn't arrived.
+  expect(stripCitationMarkers("Almost there citetur")).toBe("Almost there");
+  expect(stripCitationMarkers("A normal [link](https://example.com), citing turn 1.")).toBe("A normal [link](https://example.com), citing turn 1.");
+});
+
+test("a citation marker split across stream chunks never shows in a reply or its copy", async ({ page, context }) => {
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  // The chunks are split as a real ChatGPT-plan reply split them.
+  const chunks = ["Relaxed tailoring is in. ", "cite", "", "turn", "0search0", "", "\n\nWear the charcoal trousers."];
+  const events = [{ type: "start" }, { type: "text-start", id: "t" }, ...chunks.map((delta) => ({ type: "text-delta", id: "t", delta })), { type: "text-end", id: "t" }, { type: "finish" }];
+  await page.route("**/api/chat", (route) =>
+    route.fulfill({
+      headers: { "content-type": "text/event-stream", "x-vercel-ai-ui-message-stream": "v1" },
+      body: events.map((e) => `data: ${JSON.stringify(e)}\n\n`).join("") + "data: [DONE]\n\n",
+    }),
+  );
+  await page.goto("/stylist?q=What%20is%20in%20right%20now");
+  const reply = page.locator(".prose-chat").filter({ hasText: "Wear the charcoal trousers." });
+  await expect(reply).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText("Relaxed tailoring is in.")).toBeVisible();
+  const shown = await page.locator(".prose-chat").allInnerTexts();
+  expect(shown.join(" ")).not.toMatch(/cite|turn0|[-]/);
+
+  await page.getByRole("button", { name: /copy/i }).last().click();
+  const copied = await page.evaluate(() => navigator.clipboard.readText());
+  expect(copied).toContain("Wear the charcoal trousers.");
+  expect(copied).not.toMatch(/cite|turn0|[-]/);
+});
 
 /** All of these use the scripted Demo stylist, so they check the components, not answer quality. */
 test("outfit card: weather, swaps change the board, and wearing is logged once", async ({ page }) => {
