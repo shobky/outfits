@@ -2,7 +2,7 @@
 export const FEATURES = {
   multi_photo: {
     label: "Combine photos",
-    description: "Uses every photo of a piece as a reference for its studio shot. Only pieces with more than one photo cost more, about $0.031 instead of $0.025.",
+    description: "Uses up to 3 photos of a piece for its studio shot. Only pieces with more than one photo cost more, about $0.031 instead of $0.025.",
   },
 } as const;
 
