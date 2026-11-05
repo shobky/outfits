@@ -53,6 +53,9 @@ Status legend: ✅ done · 🟡 partial · ⬜ todo
 Suggested trial: 3 garments on Tripo + TRELLIS with a fal.ai key, budget $3.
 
 ## Decisions log
+- 2026-11 — Beta foundations live: invites (off until `INVITE_ONLY=1`), spending limits, usage events, account deletion. Stylist limited to 20 messages a day. Profile has a developer menu for addresses in `ALLOWED_EMAILS`.
+- 2026-11 — Next premium order, chosen by the owner: `multi_photo`, then `worn_extract`, then `try_on`, all behind flags (`docs/PREMIUM.md`). Not started.
+- 2026-11 — Measured on the API key: about $0.029 per photo, about $0.019 per stylist message with one web search ($0.0094 tokens, one sample).
 - 2026-11 — In-browser cut-out replaced by server-side AI studio shots, at the owner's request, about $0.03 per photo. The real photo is always kept.
 - 2026-11 — Auto-add confident pieces rather than review everything, chosen by the owner. Threshold: 0.75.
 - 2026-11 — Going live: `ALLOWED_EMAILS` gates the app, because open sign-in would spend on the owner's API keys.
