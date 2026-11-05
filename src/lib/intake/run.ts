@@ -71,7 +71,7 @@ export async function runBatch(repo: Repo, batch: IntakeBatch) {
     const ai = resolveAI(repo.userId);
     // Budgets guard the owner's key. A person's own plan has its own limits.
     const useVision = ai.source === "plan" || (ai.source === "key" && (await canReadPhotos(repo)));
-    const { analysis, usd } = useVision && ai.source !== "none" ? await analyzePhotos(photos, ai) : { analysis: { groups: offlineGroups(photos.length), rejected: [] }, usd: 0 };
+    const { analysis, usd } = useVision ? await analyzePhotos(photos, ai) : { analysis: { groups: offlineGroups(photos.length), rejected: [] }, usd: 0 };
     if (usd) await record(repo, "vision", usd);
     const groups = await repo.createIntakeGroups(
       analysis.groups.map((g) => ({
