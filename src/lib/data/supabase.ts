@@ -154,6 +154,10 @@ export function supabaseRepo(sb: SupabaseClient, userId: string, email: string |
       if (error) throw new Error(error.message);
       return count ?? 0;
     },
+    async memberFeatures() {
+      const row = must(await sb.from("member_features").select("features").eq("user_id", userId).maybeSingle()) as { features: string[] } | null;
+      return row?.features ?? [];
+    },
     async chatMessagesToday() {
       return Number(must(await sb.rpc("chat_messages_today"))) || 0;
     },

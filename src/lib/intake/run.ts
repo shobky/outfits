@@ -3,7 +3,9 @@ import type { Repo } from "../data/repo";
 import type { IntakeBatch, IntakeGroup, IntakeView, ItemImage, ItemInput } from "../types";
 import { explainAIError, resolveAI } from "../ai/provider";
 import { analyzePhotos, type AnalyzedGroup } from "./analyze";
+import { hasFeature } from "../features";
 import { canReadPhotos, checkStudio, record } from "./budget";
+import { pickReferences } from "./references";
 import { frameOriginal, restyle, studioEnabled } from "./studio";
 
 /** Below this the piece waits for the owner instead of going straight into the drawer. */
@@ -111,6 +113,7 @@ export async function runGroup(repo: Repo, group: IntakeGroup) {
   let note: string | null = null;
   const label = group.draft.name || "this piece";
   await repo.updateIntakeGroup(group.id, { status: "processing", error: null, step: `Styling ${label}` });
+  const combine = views.length > 1 && (await hasFeature(repo, "multi_photo"));
 
   for (const v of views) {
     if (v.ai && v.result_url) continue; // an earlier good result: a retry shouldn't pay for it twice
@@ -132,7 +135,11 @@ export async function runGroup(repo: Repo, group: IntakeGroup) {
         continue;
       }
       await repo.updateIntakeGroup(group.id, { step: `Styling the ${v.view} of ${label}` });
-      const { data, usd } = await restyle(photo, { rotation: v.rotation, facts: group.facts ?? group.description ?? label, view: v.view });
+      // A reference that won't load shouldn't cost the piece its studio shot.
+      const references = combine
+        ? (await Promise.all(pickReferences(views, v).map(async (r) => ({ photo: await repo.readImage(r.photo_url).catch(() => null), rotation: r.rotation })))).flatMap((r) => (r.photo ? [{ photo: r.photo, rotation: r.rotation }] : []))
+        : [];
+      const { data, usd } = await restyle(photo, { rotation: v.rotation, facts: group.facts ?? group.description ?? label, view: v.view, references });
       cost += usd;
       await record(repo, "studio", usd);
       v.result_url = await store(repo, data);

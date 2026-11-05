@@ -105,6 +105,8 @@ export interface Profile {
   notes: string | null;
   /** Developer switch. The app ignores it unless the address is in ALLOWED_EMAILS. */
   limits_off?: boolean;
+  /** Developer switches for premium features. Ignored unless the address is in ALLOWED_EMAILS. */
+  dev_features?: string[];
 }
 
 export interface WeatherSnapshot {

@@ -36,6 +36,7 @@ export interface Usage {
   limitsOff: boolean;
   /** Only sent to developers. */
   spentToday: number | null;
+  features: string[];
 }
 
 /** "in 3h 12m", for a reset time in the future. */

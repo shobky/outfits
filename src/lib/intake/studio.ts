@@ -12,8 +12,12 @@ const IMAGE_MODEL = () => process.env.IMAGE_MODEL || "gpt-image-2.5-sunburst";
 const USD_PER_M = { text: 5, image: 8, output: 30 };
 const TIMEOUT_MS = 150_000;
 
-function prompt(facts: string, view: string) {
+function prompt(facts: string, view: string, references: number) {
+  const extra = references
+    ? `\nThe first image is the photo to edit. The other ${references === 1 ? "image is another photo" : `${references} images are other photos`} of this same garment, from other angles or close up. Use them only to get its colour, texture and details right. Show the ${view === "back" ? "back" : "front"} as seen in the first image.`
+    : "";
   return `Edit this photo into a professional e-commerce product photo of the EXACT same garment, showing its ${view === "back" ? "back" : "front"}. Stay as close to the source photo as possible: this is a retouch, not a redesign.
+${extra}
 Facts about this exact item, which must stay true:
 ${facts}
 Keep the real colour, material, texture, pattern, hardware and proportions. Do not add, remove or redesign anything. Keep any label text as it appears, or leave it unreadable rather than inventing letters.
@@ -25,11 +29,13 @@ Background must be fully transparent. No person, hanger, surface, props, text or
 /** Studio shots need the API key: ChatGPT plan usage has no image generation, and plan users mustn't spend the key. */
 export const studioEnabled = (owner: string) => resolveAI(owner).source === "key";
 
-async function callEdit(photo: Buffer, facts: string, view: string) {
+async function callEdit(photo: Buffer, facts: string, view: string, references: Buffer[]) {
   const form = new FormData();
   form.append("model", IMAGE_MODEL());
-  form.append("prompt", prompt(facts, view));
+  form.append("prompt", prompt(facts, view, references.length));
+  // Order matters: the prompt calls the first image the one to edit.
   form.append("image[]", new Blob([new Uint8Array(photo)], { type: "image/jpeg" }), "photo.jpg");
+  references.forEach((r, i) => form.append("image[]", new Blob([new Uint8Array(r)], { type: "image/jpeg" }), `reference-${i + 1}.jpg`));
   form.append("size", "1024x1024");
   form.append("quality", "medium");
   form.append("output_format", "png");
@@ -71,14 +77,16 @@ function explain(e: unknown) {
 }
 
 /** Returns a framed WebP ready to store. Throws with a reason the owner can read. */
-export async function restyle(photo: Buffer, opts: { rotation: number; facts: string; view: string }) {
+export async function restyle(photo: Buffer, opts: { rotation: number; facts: string; view: string; references?: { photo: Buffer; rotation: number }[] }) {
   const upright = await uprightJpeg(photo, opts.rotation);
+  // References are smaller: they only need to show detail, and input images are billed by size.
+  const references = await Promise.all((opts.references ?? []).map((r) => uprightJpeg(r.photo, r.rotation, 1024)));
   let usd = 0;
   let last: unknown = new Error("The result didn't come back as a clean cut-out");
   for (let attempt = 0; attempt < ATTEMPTS; attempt++) {
     if (attempt) await sleep(2000 * attempt);
     try {
-      const { image, usd: cost } = await callEdit(upright, opts.facts, opts.view);
+      const { image, usd: cost } = await callEdit(upright, opts.facts, opts.view, references);
       usd += cost;
       if (await isCleanCutout(image)) return { data: await frameGarment(image), usd };
       last = new Error("The result didn't come back as a clean cut-out");

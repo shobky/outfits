@@ -9,6 +9,7 @@ const usage = (over: Partial<Usage> = {}): Usage => ({
   developer: true,
   limitsOff: false,
   spentToday: 0.12,
+  features: [],
   ...over,
 });
 const fake = (page: Page, u: Usage) => page.route("**/api/usage", (r) => r.fulfill({ json: u }));

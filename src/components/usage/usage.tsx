@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
 import useSWR, { mutate } from "swr";
+import { FEATURES, type FeatureName } from "@/lib/features-shared";
 import { timeUntil, WARN_AT, type Usage, type UsageAllowance } from "@/lib/usage-rules";
 import { api, cn, fetcher } from "@/lib/utils";
 
@@ -126,12 +127,12 @@ export function DeveloperMenu() {
   const [busy, setBusy] = useState(false);
   if (!data?.developer) return null;
 
-  const toggle = async () => {
+  const change = async (body: object, done: (next: Usage) => string) => {
     setBusy(true);
     try {
-      const next = await api<Usage>("/api/dev", "POST", { limits_off: !data.limitsOff });
+      const next = await api<Usage>("/api/dev", "POST", body);
       await mutate("/api/usage", next, { revalidate: false });
-      toast(next.limitsOff ? "Limits off. AI spend is uncapped for you" : "Limits back on");
+      toast(done(next));
     } catch (e) {
       toast.error(`Couldn't change that: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
@@ -144,24 +145,46 @@ export function DeveloperMenu() {
       <h2 className="flex items-center gap-2 text-[14px] font-semibold tracking-tight">
         <FlaskConical className="size-4 text-muted" /> Developer
       </h2>
-      <div className="flex items-center justify-between gap-4">
-        <div className="min-w-0">
-          <p className="text-[13.5px] font-medium">Turn off usage limits</p>
-          <p className="text-[12.5px] text-muted">For your account: messages, photos, studio shots and the daily budget. This spends real money with no cap.</p>
-        </div>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={data.limitsOff}
-          aria-label="Turn off usage limits"
+      <DevSwitch
+        label="Turn off usage limits"
+        description="For your account: messages, photos, studio shots and the daily budget. This spends real money with no cap."
+        on={data.limitsOff}
+        disabled={busy}
+        onToggle={() => change({ limits_off: !data.limitsOff }, (n) => (n.limitsOff ? "Limits off. AI spend is uncapped for you" : "Limits back on"))}
+      />
+      {(Object.keys(FEATURES) as FeatureName[]).map((f) => (
+        <DevSwitch
+          key={f}
+          label={FEATURES[f].label}
+          description={FEATURES[f].description}
+          on={data.features.includes(f)}
           disabled={busy}
-          onClick={toggle}
-          className={cn("relative h-7 w-12 shrink-0 rounded-full transition-colors disabled:opacity-50", data.limitsOff ? "bg-accent" : "bg-surface-2")}
-        >
-          <span className={cn("absolute top-0.5 size-6 rounded-full bg-white shadow-soft transition-[left]", data.limitsOff ? "left-[22px]" : "left-0.5")} />
-        </button>
-      </div>
+          onToggle={() => change({ feature: f, on: !data.features.includes(f) }, (n) => `${FEATURES[f].label} ${n.features.includes(f) ? "on" : "off"}`)}
+        />
+      ))}
       {data.spentToday !== null && <p className="text-[12.5px] text-muted">AI spend today: ${data.spentToday.toFixed(2)}. Web searches aren&apos;t included. Each person counts for at most $2 of this.</p>}
     </section>
+  );
+}
+
+function DevSwitch({ label, description, on, disabled, onToggle }: { label: string; description: string; on: boolean; disabled: boolean; onToggle: () => void }) {
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <div className="min-w-0">
+        <p className="text-[13.5px] font-medium">{label}</p>
+        <p className="text-[12.5px] text-muted">{description}</p>
+      </div>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={on}
+        aria-label={label}
+        disabled={disabled}
+        onClick={onToggle}
+        className={cn("relative h-7 w-12 shrink-0 rounded-full transition-colors disabled:opacity-50", on ? "bg-accent" : "bg-surface-2")}
+      >
+        <span className={cn("absolute top-0.5 size-6 rounded-full bg-white shadow-soft transition-[left]", on ? "left-[22px]" : "left-0.5")} />
+      </button>
+    </div>
   );
 }

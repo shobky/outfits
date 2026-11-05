@@ -24,7 +24,9 @@ export async function PATCH(req: Request) {
   const repo = await getRepo();
   if (!repo) return unauthorized();
   const patch = (await req.json()) as Partial<Profile>;
-  delete patch.limits_off; // only /api/dev changes this, after checking who's asking
+  // Only /api/dev changes these, after checking who's asking.
+  delete patch.limits_off;
+  delete patch.dev_features;
   if (patch.home_city) {
     const g = await geocode(patch.home_city).catch(() => null);
     if (g) Object.assign(patch, { latitude: g.lat, longitude: g.lon, country: patch.country || g.country || null });

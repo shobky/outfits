@@ -192,6 +192,9 @@ const repo: Repo = {
   async studioShotsUsed() {
     return store().aiSpend.filter((s) => s.kind === "studio").length;
   },
+  async memberFeatures() {
+    return []; // Local mode is a developer, whose features live on the profile.
+  },
   async chatMessagesToday() {
     return 0; // Local mode only ever runs one person, usually on the free demo stylist.
   },

@@ -1,6 +1,6 @@
 # Premium features: test results and plan
 
-Nothing here is built yet. Status: tested on the owner's 8 worn photos, 2026-11. Lives on `feat/beta`.
+`multi_photo` is built and live, off by default. The rest isn't built. Status: tested on the owner's 8 worn photos, 2026-11. Lives on `feat/beta`.
 
 ## What the test showed
 Low-resolution screenshots (237–605 px, except one at 1170 px), `gpt-image-2.5-sunburst`, medium quality. **Test cost $0.27 in total**: about $0.02 per image, $0.033 for three photos combined, $0.0093 for the vision call. Judged by eye; only the jacket has a real reference photo.
@@ -29,13 +29,19 @@ Goal: friends can't break the bank, and the owner controls everything from one p
 | Flag | Feature | Cost per use |
 |---|---|---|
 | `worn_extract` | Pieces from worn photos | about $0.02 per piece |
-| `multi_photo` | Combine photos of one garment | about $0.033 |
+| `multi_photo` | Combine photos of one garment. **Built.** | $0.031 on the jacket with 2 close-ups, against $0.025 from one photo (one sample) |
 | `display_styles` | Hanging, neat pair, straight | about $0.02 per version |
 | `try_on` | See it on yourself | about $0.03 |
 
 - **Per person, off by default.** Add `features text[]`, `studio_allowance int` and `daily_budget_usd` to a member record. The server checks them, never the browser alone.
 - **Global off switch for each feature**, so anything can be stopped at once.
 - Every feature records its spend through `record_ai_spend`, with its own `kind`, and stops at that person's budget.
+
+**How it works today:** developers switch features in Profile's developer menu. For anyone else, run this in the SQL editor; users can read their row but can't write it. `FEATURE_MULTI_PHOTO=0` in Vercel stops it for everyone.
+```sql
+insert into public.member_features (user_id, features) values ('<user id>', '{multi_photo}')
+on conflict (user_id) do update set features = excluded.features, updated_at = now();
+```
 
 ## Owner dashboard (`/admin`)
 Only for addresses in `ALLOWED_EMAILS`, checked on the server. Reads need a server-side role key, so the key's handling needs design first.
