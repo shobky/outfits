@@ -15,7 +15,7 @@ export function OutfitsView() {
   const byId = new Map(data?.items.map((i) => [i.id, i]));
 
   return (
-    <div className="pb-32 lg:pb-12">
+    <div className="pb-nav lg:pb-12">
       <PageHeader
         title="Outfits"
         right={<ProfileLink />}

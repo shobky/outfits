@@ -51,7 +51,7 @@ export function AddView() {
   };
 
   return (
-    <div className="pb-32 lg:pb-12">
+    <div className="pb-nav lg:pb-12">
       <PageHeader title="Add pieces" />
       <div className="mx-auto max-w-5xl space-y-5 px-4 md:px-8">
         <input ref={fileRef} type="file" accept="image/*,.heic,.heif" multiple hidden onChange={pick} />

@@ -131,6 +131,19 @@ body {
 .pt-safe {
   padding-top: env(safe-area-inset-top);
 }
+/* Page bottoms clear the floating tab bar and the home indicator, without a fixed guess. */
+.pb-nav {
+  padding-bottom: calc(env(safe-area-inset-bottom) + 6.5rem);
+}
+
+/* iOS zooms the whole page when a field under 16px gets focus, and doesn't zoom back. */
+@media (hover: none) and (pointer: coarse) {
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
 
 /* Streamdown code blocks inherit our surfaces */
 .prose-chat pre {

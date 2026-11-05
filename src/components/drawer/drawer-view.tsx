@@ -55,7 +55,7 @@ export function DrawerView() {
   }, [all]);
 
   return (
-    <div className="pb-32 lg:pb-12">
+    <div className="pb-nav lg:pb-12">
       <PageHeader
         title="Drawer"
         left={

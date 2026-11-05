@@ -32,7 +32,7 @@ function ProfileForm({ data, onSaved }: { data: NonNullable<ReturnType<typeof us
   const set = <K extends keyof Profile>(k: K, v: Profile[K]) => setP({ ...p, [k]: v });
 
   return (
-    <div className="pb-32 lg:pb-12">
+    <div className="pb-nav lg:pb-12">
       <PageHeader title="Profile" />
       <div className="mx-auto max-w-xl space-y-6 px-4">
         <div className="grid grid-cols-2 gap-2">
