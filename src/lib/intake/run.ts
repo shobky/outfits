@@ -1,9 +1,10 @@
 import "server-only";
 import type { Repo } from "../data/repo";
 import type { IntakeBatch, IntakeGroup, IntakeView, ItemImage, ItemInput } from "../types";
+import { explainAIError, resolveAI } from "../ai/provider";
 import { analyzePhotos, type AnalyzedGroup } from "./analyze";
 import { canReadPhotos, checkStudio, record } from "./budget";
-import { aiEnabled, frameOriginal, restyle } from "./studio";
+import { frameOriginal, restyle, studioEnabled } from "./studio";
 
 /** Below this the piece waits for the owner instead of going straight into the drawer. */
 const AUTO_ADD_CONFIDENCE = 0.75;
@@ -67,8 +68,10 @@ async function inPool<T>(items: T[], worker: (item: T) => Promise<void>) {
 export async function runBatch(repo: Repo, batch: IntakeBatch) {
   try {
     const photos = await Promise.all(batch.photos.map((url) => repo.readImage(url)));
-    const useVision = aiEnabled() && (await canReadPhotos(repo));
-    const { analysis, usd } = useVision ? await analyzePhotos(photos) : { analysis: { groups: offlineGroups(photos.length), rejected: [] }, usd: 0 };
+    const ai = resolveAI(repo.userId);
+    // Budgets guard the owner's key. A person's own plan has its own limits.
+    const useVision = ai.source === "plan" || (ai.source === "key" && (await canReadPhotos(repo)));
+    const { analysis, usd } = useVision && ai.source !== "none" ? await analyzePhotos(photos, ai) : { analysis: { groups: offlineGroups(photos.length), rejected: [] }, usd: 0 };
     if (usd) await record(repo, "vision", usd);
     const groups = await repo.createIntakeGroups(
       analysis.groups.map((g) => ({
@@ -96,7 +99,7 @@ export async function runBatch(repo: Repo, batch: IntakeBatch) {
     await repo.updateIntakeBatch(batch.id, { status: "done" });
   } catch (e) {
     console.error("[intake] batch failed", e);
-    await repo.updateIntakeBatch(batch.id, { status: "failed", error: `We couldn't read these photos: ${reason(e)}` }).catch(console.error);
+    await repo.updateIntakeBatch(batch.id, { status: "failed", error: `We couldn't read these photos: ${explainAIError(e)}` }).catch(console.error);
   }
 }
 
@@ -118,7 +121,7 @@ export async function runGroup(repo: Repo, group: IntakeGroup) {
         v.result_url = await store(repo, await frameOriginal(photo, v.rotation));
         continue;
       }
-      if (!aiEnabled()) {
+      if (!studioEnabled(repo.userId)) {
         v.result_url = await store(repo, await frameOriginal(photo, v.rotation));
         continue;
       }

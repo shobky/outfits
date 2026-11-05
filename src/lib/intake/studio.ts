@@ -1,4 +1,5 @@
 import "server-only";
+import { resolveAI } from "../ai/provider";
 import { frameGarment, isCleanCutout, uprightJpeg } from "../image/frame";
 
 /**
@@ -21,7 +22,8 @@ Centre it and make it fill about 80% of the square, with equal space on all side
 Background must be fully transparent. No person, hanger, surface, props, text or cast shadow.`;
 }
 
-export const aiEnabled = () => Boolean(process.env.OPENAI_API_KEY);
+/** Studio shots need the API key: ChatGPT plan usage has no image generation, and plan users mustn't spend the key. */
+export const studioEnabled = (owner: string) => resolveAI(owner).source === "key";
 
 async function callEdit(photo: Buffer, facts: string, view: string) {
   const form = new FormData();

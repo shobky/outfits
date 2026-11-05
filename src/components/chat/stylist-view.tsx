@@ -11,6 +11,8 @@ import { Sheet } from "@/components/ui/sheet";
 import { ChatAllowanceNote, chatIsOut, ChatRestCard, refreshUsage, useUsage } from "@/components/usage/usage";
 import { DEFAULT_MODEL_ID } from "@/lib/ai/models";
 import type { DrawerUIMessage } from "@/lib/ai/tools";
+import { ManageUsage } from "@/components/chatgpt";
+import { USAGE_LIMIT_MESSAGE } from "@/lib/chatgpt/shared";
 import { useProfile } from "@/lib/hooks";
 import type { ChatSession } from "@/lib/types";
 import { api, cn, fetcher } from "@/lib/utils";
@@ -230,9 +232,13 @@ function Conversation({
           {error && !error.message.includes("chat_limit") && (
             <div className="flex items-center justify-between gap-3 rounded-2xl bg-danger/10 px-4 py-3 text-sm text-danger">
               <span>{friendlyError(error.message)}</span>
-              <button onClick={() => regenerate()} className="font-medium underline">
-                Retry
-              </button>
+              {error.message === USAGE_LIMIT_MESSAGE ? (
+                <ManageUsage className="shrink-0" />
+              ) : (
+                <button onClick={() => regenerate()} className="font-medium underline">
+                  Retry
+                </button>
+              )}
             </div>
           )}
         </div>

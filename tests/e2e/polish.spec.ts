@@ -74,6 +74,8 @@ test("a toast over an open drawer can be touched, and doesn't close the drawer",
   await expect(toast).toBeVisible();
   const pointer = await toast.evaluate((el) => getComputedStyle(el).pointerEvents);
   expect(pointer).not.toBe("none");
+  // The toast slides in, so measuring it too early makes the click miss it and hit the overlay.
+  await page.waitForTimeout(600);
   const box = (await toast.boundingBox())!;
   await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
   await expect(sheet).toBeVisible();

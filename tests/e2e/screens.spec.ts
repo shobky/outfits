@@ -45,3 +45,19 @@ test("the login page shows why a link failed", async ({ page }) => {
   await page.goto("/login?error=auth");
   await expect(page.getByRole("alert").filter({ hasText: "didn't work" })).toBeVisible();
 });
+
+test("ChatGPT sign-in is offered on this computer and hidden anywhere else", async ({ page, request }) => {
+  await page.goto("/login");
+  await expect(page.getByRole("link", { name: "Continue with ChatGPT" })).toHaveAttribute("data-oai-siwc-button", "");
+  await expect(page.getByText("No API key needed")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Continue with email" })).toBeVisible();
+
+  const start = await request.get("http://127.0.0.1:3100/auth/chatgpt/start", { maxRedirects: 0 });
+  const authorize = new URL(start.headers().location);
+  expect(authorize.origin).toBe("https://auth.openai.com");
+  expect(authorize.searchParams.get("redirect_uri")).toBe("http://127.0.0.1:3100/auth/callback");
+  expect(authorize.searchParams.get("scope")).toContain("chatgpt.tokens.use.direct");
+
+  const hosted = await request.get("/auth/chatgpt/status", { headers: { host: "outfits.example.com" } });
+  expect((await hosted.json()).available).toBe(false);
+});

@@ -1,4 +1,6 @@
+import { Suspense } from "react";
 import { BottomNav, SideRail } from "@/components/app-nav";
+import { ChatGPTWelcome } from "@/components/chatgpt";
 import { IntakeProvider, IntakeStatus } from "@/components/intake/intake-provider";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -10,6 +12,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <IntakeStatus />
         <BottomNav />
       </div>
+      <Suspense>
+        <ChatGPTWelcome />
+      </Suspense>
     </IntakeProvider>
   );
 }

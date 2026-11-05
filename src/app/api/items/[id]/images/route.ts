@@ -1,6 +1,6 @@
 import { getRepo, unauthorized, type Repo } from "@/lib/data";
 import { checkStudio, record } from "@/lib/intake/budget";
-import { aiEnabled, frameOriginal, restyle } from "@/lib/intake/studio";
+import { frameOriginal, restyle, studioEnabled } from "@/lib/intake/studio";
 import { removePhoto, setPhoto, type PhotoChange, type SetPhoto } from "@/lib/item-images";
 
 export const maxDuration = 180;
@@ -30,7 +30,7 @@ export async function POST(req: Request, ctx: RouteContext<"/api/items/[id]/imag
     const raw = await repo.readImage(body.url);
     let framed: Buffer;
     let warning: string | undefined;
-    const decision = body.view !== "detail" && aiEnabled() ? await checkStudio(repo) : null;
+    const decision = body.view !== "detail" && studioEnabled(repo.userId) ? await checkStudio(repo) : null;
     if (decision && !decision.ok) {
       warning = decision.note;
       framed = await frameOriginal(raw);

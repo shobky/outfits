@@ -2,7 +2,8 @@
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { ArrowUp, Check, ChevronDown, Paperclip, Square, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { MODELS } from "@/lib/ai/models";
+import { ChatGPTMark, ManageUsage, useChatGPT } from "@/components/chatgpt";
+import { MODELS, type ModelOption } from "@/lib/ai/models";
 import { cn } from "@/lib/utils";
 
 export function Composer({
@@ -44,7 +45,11 @@ export function Composer({
     if (fileRef.current) fileRef.current.value = "";
   };
 
-  const current = MODELS.find((m) => m.id === model) ?? MODELS[0];
+  const { data: chatgpt } = useChatGPT();
+  const onPlan = !!chatgpt?.sharing;
+  // A plan offers what the account can use, not the API's list.
+  const options: ModelOption[] = onPlan && chatgpt.models.length ? [...chatgpt.models.map((m) => ({ ...m, provider: "openai" as const, hint: "On your ChatGPT plan" })), MODELS.find((m) => m.provider === "demo")!] : MODELS.filter((m) => developer || !m.developerOnly);
+  const current = options.find((m) => m.id === model) ?? options[0];
   const previews = files ? [...files].map((f) => URL.createObjectURL(f)) : [];
 
   return (
@@ -91,7 +96,7 @@ export function Composer({
           </DropdownMenu.Trigger>
           <DropdownMenu.Portal>
             <DropdownMenu.Content side="top" align="start" sideOffset={8} className="z-50 min-w-60 rounded-2xl border border-border bg-bg-elevated p-1.5 shadow-2xl animate-in fade-in zoom-in-95">
-              {MODELS.filter((m) => developer || !m.developerOnly).map((m) => (
+              {options.map((m) => (
                 <DropdownMenu.Item key={m.id} onSelect={() => onModel(m.id)} className="flex cursor-pointer items-center gap-3 rounded-xl px-3 py-2 outline-none data-[highlighted]:bg-surface-2">
                   <div className="flex-1">
                     <p className="text-[13.5px] font-medium">{m.label}</p>
@@ -104,16 +109,24 @@ export function Composer({
           </DropdownMenu.Portal>
         </DropdownMenu.Root>
 
-        <span className="ml-auto hidden text-[11px] text-faint md:block">↵ send · ⇧↵ newline</span>
+        {onPlan ? (
+          <span className="ml-auto flex min-w-0 items-center gap-1.5 text-[11.5px] text-muted">
+            <ChatGPTMark className="size-3.5" />
+            <span className="hidden sm:inline">Using ChatGPT plan ·</span>
+            <ManageUsage className="whitespace-nowrap font-normal" />
+          </span>
+        ) : (
+          <span className="ml-auto hidden text-[11px] text-faint md:block">↵ send · ⇧↵ newline</span>
+        )}
         {busy ? (
-          <button onClick={onStop} className="ml-auto grid size-9 place-items-center rounded-full bg-primary text-primary-fg md:ml-2" aria-label="Stop">
+          <button onClick={onStop} className={cn("grid size-9 shrink-0 place-items-center rounded-full bg-primary text-primary-fg", onPlan ? "ml-2" : "ml-auto md:ml-2")} aria-label="Stop">
             <Square className="size-3.5 fill-current" />
           </button>
         ) : (
           <button
             onClick={submit}
             disabled={!text.trim() && !files?.length}
-            className="ml-auto grid size-9 place-items-center rounded-full bg-primary text-primary-fg transition-opacity disabled:opacity-25 md:ml-2"
+            className={cn("grid size-9 shrink-0 place-items-center rounded-full bg-primary text-primary-fg transition-opacity disabled:opacity-25", onPlan ? "ml-2" : "ml-auto md:ml-2")}
             aria-label="Send"
           >
             <ArrowUp className="size-[18px]" strokeWidth={2.4} />

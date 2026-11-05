@@ -4,6 +4,7 @@ import { useTheme } from "next-themes";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { ChatGPTButton, ChatGPTMark, ManageUsage, useChatGPT } from "@/components/chatgpt";
 import { GarmentImage } from "@/components/drawer/item-card";
 import { toast } from "sonner";
 import { Field, MultiChips } from "@/components/drawer/attribute-picker";
@@ -25,6 +26,57 @@ export function MeView() {
   return <ProfileForm data={data} onSaved={() => mutate()} />;
 }
 
+/** Only appears where the sign-in can work: OpenAI limits plan usage to apps on the user's own computer. */
+function ChatGPTPlan({ onChange }: { onChange: () => Promise<unknown> | void }) {
+  const { data, mutate } = useChatGPT();
+  const [busy, setBusy] = useState(false);
+  if (!data?.available) return null;
+  if (!data.connected) {
+    return (
+      <section className="space-y-4 rounded-[28px] bg-surface p-5">
+        <div className="space-y-1">
+          <h2 className="font-semibold tracking-tight">Use your ChatGPT plan</h2>
+          <p className="text-[13px] leading-relaxed text-muted">The stylist and photo recognition use your Plus or Pro plan or credits balance instead of an API key.</p>
+        </div>
+        <ChatGPTButton />
+      </section>
+    );
+  }
+  return (
+    <section className="space-y-3 rounded-[28px] bg-surface p-5">
+      <div className="flex items-center gap-3">
+        <ChatGPTMark className="size-6" />
+        <div className="min-w-0 flex-1">
+          <h2 className="font-semibold tracking-tight">{data.sharing ? "Using ChatGPT plan" : "ChatGPT plan is off"}</h2>
+          {data.email && <p className="truncate text-[13px] text-muted">{data.email}</p>}
+        </div>
+        {data.sharing && <ManageUsage className="text-[13px]" />}
+      </div>
+      <p className="text-[13px] leading-relaxed text-muted">
+        {data.sharing
+          ? "ChatGPT plans don't include image generation here, so new pieces use your own photo, neatly framed, instead of a studio shot."
+          : "This account didn't allow its plan to be used here. Sign in again and allow it, or add an API key."}
+      </p>
+      {!data.sharing && <ChatGPTButton />}
+      <Button
+        variant="ghost"
+        size="sm"
+        className="-ml-3 text-muted"
+        disabled={busy}
+        onClick={async () => {
+          setBusy(true);
+          const { revoked } = await api<{ revoked: boolean }>("/auth/chatgpt/disconnect", "POST").finally(() => setBusy(false));
+          await Promise.all([mutate(), onChange()]);
+          if (revoked) toast("Disconnected from ChatGPT");
+          else toast("Disconnected here. To finish, remove Outfits in your ChatGPT settings.");
+        }}
+      >
+        Disconnect
+      </Button>
+    </section>
+  );
+}
+
 function ProfileForm({ data, onSaved }: { data: NonNullable<ReturnType<typeof useProfile>["data"]>; onSaved: () => Promise<unknown> | void }) {
   const [p, setP] = useState<Profile>(data.profile);
   const { theme, setTheme } = useTheme();
@@ -42,6 +94,7 @@ function ProfileForm({ data, onSaved }: { data: NonNullable<ReturnType<typeof us
 
         <UsageCard />
 
+        <ChatGPTPlan onChange={onSaved} />
         <SampleItems />
         <MissingPhotos />
 

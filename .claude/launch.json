@@ -13,6 +13,22 @@
       }
     },
     {
+      "name": "outfits-chatgpt-local",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "dev",
+        "-p",
+        "3200"
+      ],
+      "port": 3200,
+      "url": "http://127.0.0.1:3200",
+      "env": {
+        "OPENAI_API_KEY": "",
+        "NEXT_PUBLIC_SUPABASE_URL": "",
+        "NEXT_PUBLIC_SUPABASE_ANON_KEY": ""
+      }
+    },
+    {
       "name": "outfits-ai-local",
       "runtimeExecutable": "pnpm",
       "runtimeArgs": [

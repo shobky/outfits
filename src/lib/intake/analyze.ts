@@ -1,8 +1,8 @@
 import "server-only";
-import { openai } from "@ai-sdk/openai";
-import { generateText, Output } from "ai";
+import { Output, streamText } from "ai";
 import sharp from "sharp";
 import { z } from "zod";
+import type { AIAccess } from "../ai/provider";
 import { CATEGORIES, COLORS, FITS, MATERIALS, OCCASIONS, PATTERNS, SEASONS, type Category } from "../taxonomy";
 
 const VISION_MODEL = () => process.env.VISION_MODEL || "gpt-5.4-mini";
@@ -61,11 +61,20 @@ async function thumbnail(input: Buffer) {
   return sharp(input).autoOrient().resize(768, 768, { fit: "inside", withoutEnlargement: true }).flatten({ background: "#ffffff" }).jpeg({ quality: 72 }).toBuffer();
 }
 
-export async function analyzePhotos(photos: Buffer[]): Promise<{ analysis: Analysis; usd: number }> {
+export async function analyzePhotos(photos: Buffer[], ai: Exclude<AIAccess, { source: "none" }>): Promise<{ analysis: Analysis; usd: number }> {
   const thumbs = await Promise.all(photos.map(thumbnail));
-  const { output, usage } = await generateText({
-    model: openai(VISION_MODEL()),
+  const modelId = await ai.pickModel(VISION_MODEL(), true);
+  let streamError: unknown;
+  // Streamed because ChatGPT plan usage refuses anything else.
+  const result = streamText({
+    model: ai.provider(modelId),
     output: Output.object({ schema }),
+    maxRetries: ai.maxRetries,
+    providerOptions: { openai: ai.options },
+    onError: ({ error }) => {
+      streamError = error;
+    },
+
     messages: [
       {
         role: "user",
@@ -79,7 +88,12 @@ export async function analyzePhotos(photos: Buffer[]): Promise<{ analysis: Analy
       },
     ],
   });
-  const usd = ((usage.inputTokens ?? 0) * USD_PER_M.input + (usage.outputTokens ?? 0) * USD_PER_M.output) / 1e6;
+  // A failure mid-stream otherwise surfaces only as "could not parse", hiding the real reason.
+  const [output, usage] = await Promise.all([result.output, result.usage]).catch((e) => {
+    throw streamError ?? e;
+  });
+  // A plan's usage isn't priced per token, so it costs nothing to report here.
+  const usd = ai.source === "plan" ? 0 : ((usage.inputTokens ?? 0) * USD_PER_M.input + (usage.outputTokens ?? 0) * USD_PER_M.output) / 1e6;
   return { analysis: sanitize(output, photos.length), usd };
 }
 
