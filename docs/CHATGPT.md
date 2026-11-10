@@ -13,6 +13,9 @@ OpenAI allows plan usage for open-source and local personal apps, with a redirec
 To offer it on a hosted deploy, complete https://openai.com/form/sign-in-with-chatgpt-interest/. Don't route around the 127.0.0.1 rule.
 
 ## Setup
+
+With Supabase enabled, opening `http://localhost:3000` redirects to `http://127.0.0.1:3000` before sign-in. This keeps the app session and ChatGPT callback on the same cookie host. Add both addresses' `/auth/callback` URLs to Supabase Auth's redirect allowlist. `skipProxyUrlNormalize` in `next.config.ts` preserves the absolute loopback redirect; otherwise Next.js turns it into a same-page loop.
+
 None in local mode. With Supabase configured, signing in needs `SUPABASE_SERVICE_ROLE_KEY` in `.env.local`, because a verified ChatGPT email becomes a Supabase session through the admin API. Someone already signed in can link a plan from their profile without it.
 
 No client ID, secret or OpenAI project is involved: OpenAI registers a client per account on first sign-in.

@@ -12,12 +12,12 @@
 - Auth → URL Configuration: Site URL `https://outfits.shobky.com`; Redirect URLs `https://outfits.shobky.com/auth/callback` and `http://localhost:3000/auth/callback`. Add others (such as a preview URL) here or login links fall back to the Site URL.
 
 ### Email limits
-The built-in mailer is for testing. It only delivers to addresses on the project's team, sends very few messages per hour, and its templates can't be edited. To lift this:
+The built-in mailer is for testing. It only delivers to addresses on the project's team and allows two email messages per hour. That limit is controlled by Supabase Auth, so application code cannot raise it. To lift this:
 1. Add custom SMTP under Auth → Emails → SMTP Settings. It needs an email provider and a verified sender domain.
-2. Edit "Magic link or OTP" to include `{{ .Token }}`.
+2. Edit "Magic link or OTP" to include `{{ .Token }}`. The ready-to-paste template in `supabase/templates/magic_link.html` also uses the token-hash callback so a link can be opened in another browser.
 3. Set `NEXT_PUBLIC_AUTH_EMAIL_CODE=1` in Vercel and redeploy. The login page then shows a code box.
 
-**Why it matters:** on iPhone a sign-in link opens in Safari, not the home-screen app, so the app can't receive that session. The code box is the fix.
+**Why it matters:** a standard Supabase PKCE email link needs the browser that requested it. Outfits also accepts a `token_hash` link at `/auth/callback`; that route creates the session in whichever browser opens the email. Deploy the callback handler before replacing the dashboard template. Until then, keep the default `{{ .ConfirmationURL }}` link and use the code option when the custom template is available.
 
 ## Vercel env vars (production)
 `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `OPENAI_API_KEY`, `VISION_MODEL`, `ALLOWED_EMAILS`.

@@ -11,6 +11,18 @@ export async function proxy(request: NextRequest) {
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!url || !key) return NextResponse.next();
 
+  // OpenAI requires 127.0.0.1 callbacks. Start local Supabase sessions on
+  // that host too, before sign-in, so linking a plan cannot lose the user cookie.
+  // Read Host rather than request.url: Next can normalize the latter to localhost.
+  const host = request.headers.get("host") ?? "";
+  const local = URL.canParse(`http://${host}`) ? new URL(`http://${host}`) : null;
+  if (!process.env.VERCEL && local && ["localhost", "[::1]"].includes(local.hostname)) {
+    local.hostname = "127.0.0.1";
+    local.pathname = request.nextUrl.pathname;
+    local.search = request.nextUrl.search;
+    return NextResponse.redirect(local);
+  }
+
   let response = NextResponse.next({ request });
   const supabase = createServerClient(url, key, {
     cookies: {

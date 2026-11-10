@@ -3,7 +3,7 @@ import { ArrowRight, Mail } from "lucide-react";
 import Link from "next/link";
 import { Instrument_Serif } from "next/font/google";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { ChatGPTButton, useChatGPT } from "@/components/chatgpt";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
@@ -12,7 +12,8 @@ import { cn } from "@/lib/utils";
 const display = Instrument_Serif({ weight: "400", style: ["normal", "italic"], subsets: ["latin"], display: "swap" });
 
 const URL_ERRORS: Record<string, string> = {
-  auth: "That sign-in link didn't work. Links must be opened in the browser that requested them, so send a new one from there.",
+  auth: "That sign-in link is invalid or expired. Request a new one from Outfits.",
+  expired: "That sign-in link or code has expired. Request a new one below.",
   denied: "This email doesn't have access to Outfits.",
   "chatgpt-cancelled": "ChatGPT sign-in was cancelled. Nothing was changed.",
   "chatgpt-failed": "We couldn't finish signing in with ChatGPT. Please try again.",
@@ -25,6 +26,18 @@ const URL_ERRORS: Record<string, string> = {
 const EMAIL_HAS_CODE = process.env.NEXT_PUBLIC_AUTH_EMAIL_CODE === "1";
 
 const field = "h-13 w-full rounded-full border border-border-strong bg-surface px-5 text-[15px] outline-none placeholder:text-faint";
+const RESEND_COOLDOWN_SECONDS = 60;
+
+function explainEmailError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error ?? "");
+  if (/rate|too many|429|60 seconds|once every/i.test(message)) {
+    return "Too many sign-in emails were requested. Wait a moment, then use the newest email.";
+  }
+  if (/expired|invalid|otp/i.test(message)) {
+    return "That sign-in link or code has expired. Request a new one below.";
+  }
+  return message || "We couldn't send a sign-in email. Please try again.";
+}
 
 function ChatGPTOption() {
   const { data } = useChatGPT();
@@ -55,50 +68,107 @@ function LoginForm() {
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [sent, setSent] = useState(false);
-  const [err, setErr] = useState<string | null>(URL_ERRORS[params.get("error") ?? ""] ?? null);
+  const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
+  const urlError = URL_ERRORS[params.get("error") ?? ""] ?? null;
+  const visibleError = err ?? urlError;
 
-  if (sent && !EMAIL_HAS_CODE) {
-    return (
-      <div className="flex items-center gap-3 rounded-3xl bg-surface p-5">
-        <Mail className="size-5 shrink-0 text-accent" />
-        <p className="text-sm">
-          Check <b>{email}</b> for a sign-in link, and open it in this browser.
-        </p>
-      </div>
-    );
+  useEffect(() => {
+    if (!cooldown) return;
+    const timer = window.setInterval(() => setCooldown((value) => Math.max(0, value - 1)), 1000);
+    return () => window.clearInterval(timer);
+  }, [cooldown]);
+
+  useEffect(() => {
+    if (!window.location.hash) return;
+    const fragment = new URLSearchParams(window.location.hash.slice(1));
+    const fragmentError = fragment.get("error_description") ?? fragment.get("error_code") ?? fragment.get("error");
+    if (!fragmentError) return;
+    const next = new URL(window.location.href);
+    next.hash = "";
+    next.searchParams.set("error", /expired|invalid|otp/i.test(fragmentError) ? "expired" : "auth");
+    router.replace(`${next.pathname}${next.search}`, { scroll: false });
+  }, [router]);
+
+  async function sendLink() {
+    setLoading(true);
+    setErr(null);
+    if (urlError) router.replace("/login", { scroll: false });
+    try {
+      const { error } = await createClient().auth.signInWithOtp({
+        email: email.trim(),
+        options: { emailRedirectTo: `${location.origin}/auth/callback` },
+      });
+      if (error) {
+        setErr(explainEmailError(error));
+        return false;
+      }
+      setSent(true);
+      setCooldown(RESEND_COOLDOWN_SECONDS);
+      return true;
+    } catch (error) {
+      setErr(explainEmailError(error));
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function changeEmail() {
+    setSent(false);
+    setCode("");
+    setCooldown(0);
+    setErr(null);
   }
 
   if (sent) {
     return (
-      <form
-        className="space-y-3"
-        onSubmit={async (e) => {
-          e.preventDefault();
-          setLoading(true);
-          setErr(null);
-          const { error } = await createClient().auth.verifyOtp({ email, token: code.trim(), type: "email" });
-          if (error) {
-            setLoading(false);
-            setErr(error.message);
-            return;
-          }
-          router.replace("/");
-          router.refresh();
-        }}
-      >
+      <div className="space-y-3">
         <div className="flex items-center gap-3 rounded-3xl bg-surface p-5">
           <Mail className="size-5 shrink-0 text-accent" />
           <p className="text-sm">
-            Check <b>{email}</b>. Tap the link, or enter the code from the email. Use the code if you&apos;re in the home-screen app.
+            Check <b>{email}</b> for the newest sign-in email. {EMAIL_HAS_CODE ? "Open its link here, or enter the code below." : "Open its link in this browser; if you used another browser, request a new link below."}
           </p>
         </div>
-        <input value={code} onChange={(e) => setCode(e.target.value)} inputMode="numeric" autoComplete="one-time-code" required placeholder="Code from the email" aria-label="Code from the email" className={field} />
-        <Button size="lg" className="w-full" disabled={loading}>
-          {loading ? "Checking…" : "Sign in"} <ArrowRight className="size-4" />
-        </Button>
-        {err && <p role="alert" className="text-center text-sm text-danger">{err}</p>}
-      </form>
+        {EMAIL_HAS_CODE && (
+          <form
+            className="space-y-3"
+            onSubmit={async (e) => {
+              e.preventDefault();
+              setLoading(true);
+              setErr(null);
+              try {
+                const { error } = await createClient().auth.verifyOtp({ email, token: code.trim(), type: "email" });
+                if (error) {
+                  setErr(explainEmailError(error));
+                  return;
+                }
+                router.replace("/");
+                router.refresh();
+              } catch (error) {
+                setErr(explainEmailError(error));
+              } finally {
+                setLoading(false);
+              }
+            }}
+          >
+            <input value={code} onChange={(e) => setCode(e.target.value)} inputMode="numeric" autoComplete="one-time-code" required placeholder="Code from the email" aria-label="Code from the email" className={field} />
+            <Button size="lg" className="w-full" disabled={loading}>
+              {loading ? "Checking…" : "Sign in with code"} <ArrowRight className="size-4" />
+            </Button>
+          </form>
+        )}
+        <div className="flex items-center justify-between gap-3 px-1 text-[13px] text-muted">
+          <button type="button" className="underline underline-offset-2 disabled:no-underline disabled:opacity-50" onClick={() => void sendLink()} disabled={loading || cooldown > 0}>
+            {cooldown > 0 ? `Send again in ${cooldown}s` : "Send a new link"}
+          </button>
+          <button type="button" className="underline underline-offset-2" onClick={changeEmail} disabled={loading}>
+            Use a different email
+          </button>
+        </div>
+        {visibleError && <p role="alert" className="text-center text-sm text-danger">{visibleError}</p>}
+      </div>
     );
   }
 
@@ -109,15 +179,7 @@ function LoginForm() {
         className="space-y-3"
         onSubmit={async (e) => {
           e.preventDefault();
-          setLoading(true);
-          setErr(null);
-          const { error } = await createClient().auth.signInWithOtp({
-            email,
-            options: { emailRedirectTo: `${location.origin}/auth/callback` },
-          });
-          setLoading(false);
-          if (error) setErr(error.message);
-          else setSent(true);
+          await sendLink();
         }}
       >
         <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@email.com" aria-label="Email" className={field} />
@@ -125,7 +187,7 @@ function LoginForm() {
           {loading ? "Sending…" : "Continue with email"}
         </Button>
       </form>
-      {err && <p role="alert" className="text-center text-sm text-danger">{err}</p>}
+      {visibleError && <p role="alert" className="text-center text-sm text-danger">{visibleError}</p>}
     </div>
   );
 }
