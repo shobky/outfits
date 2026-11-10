@@ -3,11 +3,12 @@ import { code } from "@streamdown/code";
 import { Check, Copy, Link2 } from "lucide-react";
 import { memo, useState } from "react";
 import { Streamdown } from "streamdown";
+import { BrandMark } from "@/components/brand-mark";
 import { stripCitationMarkers } from "@/lib/ai/citations";
 import type { DrawerUIMessage } from "@/lib/ai/tools";
 import { cn } from "@/lib/utils";
 import { AgentSteps, PROCESS_TOOLS, type StepPart } from "./agent-steps";
-import { ItemStrip, OutfitCard, ProductCheckCard, QuickReplies, SuggestionCards, WeatherCard, type OutfitResult, type ProductCheckResult, type WeatherResult } from "./tool-views";
+import { ItemStrip, OutfitCard, ProductCheckCard, QuickReplies, SuggestionCards, TryOnSuggestion, WeatherCard, type OutfitResult, type ProductCheckResult, type WeatherResult } from "./tool-views";
 
 type Part = DrawerUIMessage["parts"][number];
 type AnyTool = { type: string; toolCallId: string; state: string; input?: unknown; output?: unknown; errorText?: string };
@@ -108,7 +109,7 @@ export const Message = memo(function Message({
 
   return (
     <div className="group flex gap-3">
-      <div className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-full bg-accent text-[11px] font-bold text-accent-fg">O</div>
+      <BrandMark size={28} className="mt-0.5" />
       <div className="min-w-0 flex-1 space-y-3">
         {blocks.map((b, i) => {
           if (isOutfit(b)) {
@@ -180,6 +181,8 @@ function ToolBlock({ part, name, onAnswer }: { part: AnyTool; name: string; onAn
     }
     case "compose_outfit":
       return ready ? <OutfitCard outfit={part.output as OutfitResult} /> : <Skeleton className="aspect-[4/5] max-w-[420px]" label="Laying out the outfit…" />;
+    case "suggest_try_on":
+      return ready ? <TryOnSuggestion {...(part.output as Parameters<typeof TryOnSuggestion>[0])} /> : <Skeleton className="h-44 max-w-md" label="Preparing your fitting room…" />;
     case "check_product":
       return ready ? <ProductCheckCard product={part.output as ProductCheckResult} /> : <Skeleton className="h-24 max-w-[420px]" label="Reading the product page…" />;
     case "show_items":

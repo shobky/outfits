@@ -48,7 +48,7 @@ test("outfit card: weather, swaps change the board, and wearing is logged once",
   await expect(card.getByText(newName, { exact: true })).toHaveCount(1); // only the swap row
   await swap.click();
   await expect(swap).toHaveAttribute("aria-pressed", "true");
-  await expect(card.locator("span.rounded-full", { hasText: newName })).toBeVisible();
+  await expect(card.getByRole("button", { name: newName, exact: true })).toBeVisible();
 
   const wornCount = async () => {
     const { items } = await (await page.request.get("/api/items")).json();

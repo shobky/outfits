@@ -44,7 +44,7 @@ function layout(items: BoardItem[]): Map<string, Box> {
   return map;
 }
 
-export function OutfitBoard({ items, className, compact }: { items: BoardItem[]; className?: string; compact?: boolean }) {
+export function OutfitBoard({ items, className, compact, onItemClick }: { items: BoardItem[]; className?: string; compact?: boolean; onItemClick?: (id: string) => void }) {
   const boxes = layout(items);
   return (
     <div
@@ -71,6 +71,7 @@ export function OutfitBoard({ items, className, compact }: { items: BoardItem[];
               animationDuration: "500ms",
             }}
           >
+            {onItemClick && <button type="button" aria-label={`View ${it.name}`} onClick={() => onItemClick(it.id)} className="absolute inset-0 z-10 rounded-2xl focus-visible:outline-2 focus-visible:outline-offset-2" />}
             {it.image_url && (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={it.image_url} alt={it.name} title={it.name} onError={(e) => (e.currentTarget.style.visibility = "hidden")} className={cn("garment h-full w-full object-contain", compact && "drop-shadow-sm")} draggable={false} />

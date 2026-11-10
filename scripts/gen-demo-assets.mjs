@@ -125,12 +125,4 @@ for (const [slug, [tpl, color]] of Object.entries(items)) {
 }
 console.log(`wrote ${i} garments`);
 
-// App icon (rendered to PNG by scripts/gen-icons.mjs)
-const icons = new URL("../public/icons/", import.meta.url);
-mkdirSync(icons, { recursive: true });
-writeFileSync(
-  new URL("icon.svg", icons),
-  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="112" fill="#0e1014"/>
-<path d="M150 186 L206 162 Q256 196 306 162 L362 186 L420 238 L386 284 L352 262 L352 372 Q256 386 160 372 L160 262 L126 284 L92 238 Z" fill="#c8f05a"/>
-<path d="M206 162 Q256 206 306 162" fill="none" stroke="#0e1014" stroke-width="10" stroke-linecap="round"/></svg>`,
-);
+// App branding is generated independently by scripts/gen-icons.mjs.

@@ -5,17 +5,32 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { mutate } from "swr";
 import { GarmentImage } from "@/components/drawer/item-card";
+import { ItemSheet } from "@/components/drawer/item-sheet";
 import { OutfitBoard } from "@/components/outfit/outfit-board";
 import { TryOnButton } from "@/components/tryon/try-on";
 import { Button } from "@/components/ui/button";
 import type { VisualItem } from "@/lib/ai/tools";
 import type { Occasion } from "@/lib/taxonomy";
 import { track } from "@/lib/events";
-import { markWorn } from "@/lib/hooks";
+import { markWorn, useItems } from "@/lib/hooks";
 import type { WeatherSnapshot, WishlistItem } from "@/lib/types";
 import { api, cn, titleCase } from "@/lib/utils";
 
 export type WeatherResult = WeatherSnapshot;
+
+export function TryOnSuggestion({ items, reason, available, needs_photo, error }: { items: VisualItem[]; reason: string; available: boolean; needs_photo: boolean; error?: string }) {
+  return (
+    <div className="max-w-[420px] space-y-4 rounded-[28px] border border-border bg-surface p-4 shadow-soft">
+      <div><p className="text-xs font-medium text-muted">YOUR FITTING ROOM</p><h3 className="mt-1 text-lg font-semibold">Picture yourself in this</h3></div>
+      <p className="text-sm text-muted">{error ?? reason}</p>
+      <ItemStrip items={items} />
+      {!error && available && <TryOnButton itemIds={items.map((i) => i.id)} />}
+      {needs_photo && <Link href="/me#try-on-profile" className="inline-flex min-h-11 items-center text-sm font-medium underline underline-offset-4">Set up your photo profile</Link>}
+      {!available && !error && <p className="text-xs text-muted">Try-on isn’t enabled for this account yet.</p>}
+      <p className="text-xs text-faint">AI visual preview. Your photos and saved details guide the result; exact fit isn’t measured.</p>
+    </div>
+  );
+}
 
 function WeatherIcon({ condition }: { condition: string }) {
   const c = condition.toLowerCase();
@@ -80,6 +95,12 @@ export interface OutfitResult {
 }
 
 export function OutfitCard({ outfit }: { outfit: OutfitResult }) {
+  const [detailId, setDetailId] = useState<string | null>(null);
+  const { data: wardrobe } = useItems();
+  const openDetail = (id: string) => {
+    if (wardrobe?.items.some((i) => i.id === id)) setDetailId(id);
+    else toast.error(wardrobe ? "This piece is no longer in your drawer." : "Your drawer is still loading. Please try again.");
+  };
   const [saved, setSaved] = useState(false);
   const [worn, setWorn] = useState(false);
   const [applied, setApplied] = useState<number[]>([]);
@@ -126,7 +147,8 @@ export function OutfitCard({ outfit }: { outfit: OutfitResult }) {
 
   return (
     <div className="w-full max-w-[420px] overflow-hidden rounded-[30px] border border-border bg-surface p-2 shadow-soft">
-      <OutfitBoard items={items} />
+      <OutfitBoard items={items} onItemClick={openDetail} />
+      {detailId && <ItemSheet key={detailId} item={wardrobe?.items.find((i) => i.id === detailId) ?? null} onClose={() => setDetailId(null)} />}
       <div className="space-y-3 px-3 pb-2 pt-4">
         <div>
           <h3 className="text-[17px] font-semibold tracking-tight">{outfit.name}</h3>
@@ -145,9 +167,9 @@ export function OutfitCard({ outfit }: { outfit: OutfitResult }) {
         </div>
         <div className="no-scrollbar -mx-1 flex gap-1.5 overflow-x-auto px-1">
           {items.map((i) => (
-            <span key={i.id} className="shrink-0 rounded-full bg-surface-2 px-2.5 py-1 text-[11.5px] font-medium">
+            <button type="button" onClick={() => openDetail(i.id)} key={i.id} className="min-h-11 shrink-0 rounded-full bg-surface-2 px-2.5 py-1 text-[11.5px] font-medium">
               {i.name}
-            </span>
+            </button>
           ))}
         </div>
         {swaps.length > 0 && (
@@ -182,15 +204,22 @@ export function OutfitCard({ outfit }: { outfit: OutfitResult }) {
 }
 
 export function ItemStrip({ items, caption }: { items: VisualItem[]; caption?: string }) {
+  const [detailId, setDetailId] = useState<string | null>(null);
+  const { data: wardrobe } = useItems();
+  const openDetail = (id: string) => {
+    if (wardrobe?.items.some((i) => i.id === id)) setDetailId(id);
+    else toast.error(wardrobe ? "This piece is no longer in your drawer." : "Your drawer is still loading. Please try again.");
+  };
   return (
     <div className="w-full space-y-2">
+      {detailId && <ItemSheet key={detailId} item={wardrobe?.items.find((i) => i.id === detailId) ?? null} onClose={() => setDetailId(null)} />}
       {caption && <p className="text-sm text-muted">{caption}</p>}
       <div className="no-scrollbar -mx-1 flex gap-2.5 overflow-x-auto px-1 pb-1">
         {items.map((i) => (
           <div key={i.id} className="w-32 shrink-0 space-y-1.5">
-            <div className="grid aspect-[4/5] place-items-center rounded-[22px] border-4 border-surface bg-tile p-3 shadow-soft">
+            <button type="button" aria-label={`View ${i.name}`} onClick={() => openDetail(i.id)} className="grid aspect-[4/5] w-full place-items-center rounded-[22px] border-4 border-surface bg-tile p-3 shadow-soft">
               <GarmentImage src={i.image_url} alt={i.name} className="h-full w-full" />
-            </div>
+            </button>
             <p className="truncate px-1 text-[12px] font-medium">{i.name}</p>
           </div>
         ))}
@@ -226,7 +255,7 @@ function ProductCard({ item: w }: { item: WishlistItem }) {
       <div className="grid aspect-[4/3] place-items-center overflow-hidden rounded-2xl bg-tile">
         {w.image_url && !imageFailed ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={w.image_url} alt={w.title} referrerPolicy="no-referrer" onError={() => setImageFailed(true)} className="h-full w-full object-cover" />
+          <img src={w.image_url} alt={w.title} referrerPolicy="no-referrer" onError={() => setImageFailed(true)} className="h-full w-full object-contain" />
         ) : (
           <ShoppingBag className="size-7 text-faint" />
         )}
@@ -245,9 +274,9 @@ function ProductCard({ item: w }: { item: WishlistItem }) {
           {saved ? "Saved" : "Save"}
         </Button>
         {w.url && (
-          <a href={w.url} target="_blank" rel="noreferrer" onClick={() => track("shop_suggestion_tap", { where: "chat" })} className="inline-flex h-8 flex-1 items-center justify-center gap-1.5 rounded-full bg-primary px-3 text-[13px] font-medium text-primary-fg">
+          <Link href={`/shop/product?url=${encodeURIComponent(w.url)}`} onClick={() => track("shop_suggestion_tap", { where: "chat" })} className="inline-flex h-8 flex-1 items-center justify-center gap-1.5 rounded-full bg-primary px-3 text-[13px] font-medium text-primary-fg">
             View <ExternalLink className="size-3" />
-          </a>
+          </Link>
         )}
       </div>
     </div>
@@ -271,11 +300,11 @@ export function ProductCheckCard({ product: p }: { product: ProductCheckResult }
     host = new URL(p.url).hostname.replace(/^www\./, "");
   } catch {}
   return (
-    <a href={p.url} target="_blank" rel="noreferrer" onClick={() => track("shop_suggestion_tap", { where: "check" })} className="flex w-full max-w-[420px] items-center gap-3 rounded-[26px] border border-border bg-surface p-3 shadow-soft">
+    <Link href={`/shop/product?url=${encodeURIComponent(p.url)}`} onClick={() => track("shop_suggestion_tap", { where: "check" })} className="flex w-full max-w-[420px] items-center gap-3 rounded-[26px] border border-border bg-surface p-3 shadow-soft">
       <span className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-2xl bg-tile">
         {p.image_url && !imageFailed ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={p.image_url} alt="" referrerPolicy="no-referrer" onError={() => setImageFailed(true)} className="size-full object-cover" />
+          <img src={p.image_url} alt="" referrerPolicy="no-referrer" onError={() => setImageFailed(true)} className="size-full object-contain" />
         ) : (
           <ShoppingBag className="size-6 text-faint" />
         )}
@@ -285,7 +314,7 @@ export function ProductCheckCard({ product: p }: { product: ProductCheckResult }
         <span className="block truncate text-[12.5px] text-muted">{[p.price ? formatPrice(p.price, p.currency) : null, p.retailer ?? host].filter(Boolean).join(" · ")}</span>
       </span>
       <ExternalLink className="size-4 shrink-0 text-faint" />
-    </a>
+    </Link>
   );
 }
 

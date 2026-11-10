@@ -1,6 +1,7 @@
 "use client";
 import { Layers, MessageCircle, Plus, Shirt, ShoppingBag, UserRound } from "lucide-react";
 import Link from "next/link";
+import { BrandMark } from "@/components/brand-mark";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
@@ -55,8 +56,8 @@ export function SideRail() {
   const path = usePathname();
   return (
     <aside className="sticky top-0 hidden h-dvh w-[84px] shrink-0 flex-col items-center gap-2 border-r border-border py-5 lg:flex">
-      <Link href="/" className="mb-4 grid size-10 place-items-center rounded-2xl bg-primary text-primary-fg" aria-label="Outfits home">
-        <span className="text-lg font-bold tracking-tighter">O</span>
+      <Link href="/" className="mb-4 grid size-10 place-items-center rounded-2xl" aria-label="Outfits home">
+        <BrandMark />
       </Link>
       {TABS.map(({ href, label, icon: Icon, ...t }) => {
         const active = isActive(path, href);

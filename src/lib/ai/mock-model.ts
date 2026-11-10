@@ -81,10 +81,11 @@ export function createMockModel() {
     modelId: "demo",
     doStream: async (options) => {
       const { text, results } = turnState(options.prompt as Prompt);
-      const shopping = /buy|shop|missing|gap|need|suggest/.test(text);
+      const tryingOn = /try.?on|on me|on myself/.test(text);
+      const shopping = !tryingOn && /buy|shop|missing|gap|need|suggest/.test(text);
       const answer = String((results.ask_user as { answer?: string } | undefined)?.answer ?? "").toLowerCase();
       const dressy = /date|dinner|office|work|wedding|formal|interview/.test(`${text} ${answer}`);
-      const vague = /tonight|going out|what should i wear|outfit$/.test(text) && !dressy;
+      const vague = !tryingOn && /tonight|going out|what should i wear|outfit$/.test(text) && !dressy;
       let chunks: unknown[];
 
       const pasted = /https?:\/\/\S+/.exec(text)?.[0];
@@ -135,6 +136,13 @@ export function createMockModel() {
           toolCall("search_wardrobe", { include_laundry: false }),
           finish("tool-calls"),
         ];
+      } else if (tryingOn) {
+        if (!results.suggest_try_on) {
+          const sw = results.search_wardrobe as { items: Brief[] };
+          chunks = [toolCall("suggest_try_on", { item_ids: pickOutfit(sw.items, dressy), reason: "See how these layers and proportions look together on you." }), finish("tool-calls")];
+        } else {
+          chunks = [...textChunks("text", "Your fitting-room card is ready. Add your reference photos in Me, then open the preview to get started. AI previews approximate appearance and fit; they don't measure it."), finish("stop")];
+        }
       } else if (!results.compose_outfit) {
         const sw = results.search_wardrobe as { items: Brief[] };
         const w = results.get_weather as { temp_c?: number; condition?: string } | undefined;

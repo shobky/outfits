@@ -19,7 +19,7 @@ export default function PrivacyPage() {
       <Section title="Who processes it">
         <ul className="list-disc space-y-1 pl-5">
           <li>
-            <b>OpenAI</b> receives your clothing photos and stylist messages to recognise items, make studio shots and answer you.
+            <b>OpenAI</b> receives your clothing photos and stylist messages to recognise items, make studio shots and answer you. When you choose to analyze your photo profile or generate a try-on, it also receives your reference photos and relevant saved profile details.
           </li>
           <li>
             <b>Supabase</b> stores your data and photos, in Frankfurt.
@@ -33,7 +33,10 @@ export default function PrivacyPage() {
         </ul>
       </Section>
       <Section title="Your photos">
-        Photos are stored at long, unguessable web addresses that aren&apos;t protected by a login, so anyone who has the exact address could open them. Please only upload photos of clothes, and avoid photos showing people or personal details.
+        Clothing photos use public web addresses: anyone with the exact address can open them. Keep personal reference photos in the photo profile, where new uploads and try-on previews use separate storage protected by your account login. In local mode, your files stay on this machine and the app has no login. Older reference photos uploaded through the wardrobe storage may still have public addresses; replace them through the photo profile. Only add photos of yourself.
+      </Section>
+      <Section title="Photo profile and try-on">
+        Reference photos help the image model preserve your appearance; we do not create face-recognition templates. Photo analysis offers qualitative suggestions for you to review before saving. It does not measure your body. You can replace or remove references in Profile. Generated try-ons are AI previews, so appearance, garment details and fit can differ from reality.
       </Section>
       <Section title="What we don't do">We don&apos;t sell your data, and there are no ads. If that ever changes, we&apos;ll tell you first. Any shop links that earn us a commission will be labelled.</Section>
       <Section title="Deleting your data">

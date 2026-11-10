@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { ChatGPTButton, useChatGPT } from "@/components/chatgpt";
 import { Button } from "@/components/ui/button";
+import { BrandMark } from "@/components/brand-mark";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
@@ -197,6 +198,7 @@ export default function LoginPage() {
     <div className="flex min-h-dvh flex-col items-center justify-center px-6 py-16">
       <div className="w-full max-w-sm space-y-12">
         <div className="space-y-4 text-center">
+          <BrandMark size={80} className="mx-auto" />
           <h1 className={cn(display.className, "text-[64px] leading-[0.95] tracking-tight")}>
             Your drawer,
             <br />

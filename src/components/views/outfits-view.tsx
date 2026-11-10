@@ -1,6 +1,8 @@
 "use client";
 import { CalendarCheck, Heart, Layers, Sparkles, Trash2 } from "lucide-react";
 import Link from "next/link";
+import { useState } from "react";
+import { ItemSheet } from "@/components/drawer/item-sheet";
 import { toast } from "sonner";
 import { mutate } from "swr";
 import { ProfileLink } from "@/components/app-nav";
@@ -12,11 +14,13 @@ import { markWorn, useOutfits } from "@/lib/hooks";
 import { api, cn, titleCase } from "@/lib/utils";
 
 export function OutfitsView() {
+  const [detailId, setDetailId] = useState<string | null>(null);
   const { data, isLoading } = useOutfits();
   const byId = new Map(data?.items.map((i) => [i.id, i]));
 
   return (
     <div className="pb-nav lg:pb-12">
+      {detailId && <ItemSheet key={detailId} item={byId.get(detailId) ?? null} onClose={() => setDetailId(null)} />}
       <PageHeader
         title="Outfits"
         right={<ProfileLink />}
@@ -55,7 +59,7 @@ export function OutfitsView() {
               return (
                 <div key={o.id} className="group space-y-2">
                   <div className="relative">
-                    <OutfitBoard items={items} compact />
+                    <OutfitBoard items={items} compact onItemClick={setDetailId} />
                   </div>
                   <div className="flex items-start gap-1 px-1">
                     <div className="min-w-0 flex-1">

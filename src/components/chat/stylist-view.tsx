@@ -3,6 +3,7 @@ import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import { ArrowLeft, Moon, PanelLeft, Plus, Sun, Trash2 } from "lucide-react";
 import Link from "next/link";
+import { BrandMark } from "@/components/brand-mark";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTheme } from "next-themes";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -225,7 +226,7 @@ function Conversation({
           )}
           {status === "submitted" && messages[messages.length - 1]?.role === "user" && (
             <div className="flex items-center gap-3">
-              <div className="grid size-7 place-items-center rounded-full bg-accent text-[11px] font-bold text-accent-fg">O</div>
+              <BrandMark size={28} />
               <span className="shimmer-text text-[14px]">Thinking…</span>
             </div>
           )}
@@ -323,7 +324,7 @@ function EmptyState({ onPick }: { onPick: (t: string) => void }) {
   return (
     <div className="flex min-h-[55dvh] flex-col justify-end gap-6 pt-10">
       <div className="space-y-2">
-        <div className="grid size-11 place-items-center rounded-2xl bg-accent text-lg font-bold text-accent-fg">O</div>
+        <BrandMark size={44} />
         <h1 className="text-[28px] font-semibold leading-tight tracking-tight md:text-[34px]">
           Hey — what are we
           <br />
@@ -364,8 +365,8 @@ function ChatList({
   return (
     <div className="flex h-full flex-col gap-3 p-3 md:pt-4">
       <div className="hidden items-center gap-2 px-2 md:flex">
-        <Link href="/" className="grid size-8 place-items-center rounded-xl bg-primary text-sm font-bold text-primary-fg">
-          O
+        <Link href="/" className="grid size-8 place-items-center rounded-xl" aria-label="Outfits home">
+          <BrandMark size={32} />
         </Link>
         <span className="font-semibold tracking-tight">Stylist</span>
         <span className="ml-auto flex items-center gap-1.5 text-[11px] text-muted">

@@ -11,6 +11,8 @@ export interface Repo {
   mode: "demo" | "supabase";
   userId: string;
   email: string | null;
+  acquireTryOnLease(token: string): Promise<boolean>;
+  releaseTryOnLease(token: string): Promise<void>;
 
   listItems(filters?: ItemFilters): Promise<Item[]>;
   getItems(ids: string[]): Promise<Item[]>;
@@ -40,6 +42,10 @@ export interface Repo {
 
   /** Stores an image and returns a public URL. */
   uploadImage(data: Blob, ext: "webp" | "png" | "jpg"): Promise<string>;
+  /** Stores a profile/try-on image in the private try-on bucket and returns an authenticated app URL. */
+  uploadPrivateImage(data: Blob, ext: "webp" | "png" | "jpg", purpose?: "reference" | "result"): Promise<string>;
+  deletePrivateImage(url: string): Promise<void>;
+  readPrivateImage(url: string): Promise<Buffer>;
   /** Deletes a stored image. Ignores URLs this repo doesn't own (bundled samples, other hosts). */
   deleteImage(url: string): Promise<void>;
   /** Reads one of this user's stored images. Refuses anything else, so a URL from a client can't reach other hosts. */

@@ -26,6 +26,7 @@ interface Store {
 export const PERSIST = !process.env.VERCEL && process.env.LOCAL_PERSIST !== "0";
 export const DATA_DIR = path.join(process.cwd(), ".data");
 export const UPLOAD_DIR = path.join(DATA_DIR, "uploads");
+export const PRIVATE_UPLOAD_DIR = path.join(DATA_DIR, "try-on");
 const STORE_FILE = path.join(DATA_DIR, "store.json");
 
 type Persisted = Omit<Store, "chats"> & { chats: [string, { session: ChatSession; messages: UIMessage[] }][] };
@@ -50,6 +51,7 @@ function save() {
 }
 
 const g = globalThis as unknown as { __outfitsStore?: Store };
+const privateImages = (globalThis as unknown as { __outfitsPrivateImages?: Map<string, Buffer> }).__outfitsPrivateImages ??= new Map<string, Buffer>();
 function store(): Store {
   g.__outfitsStore ??= load() ?? {
     items: process.env.DEMO_SEED === "0" ? [] : seedItems(),
@@ -76,6 +78,16 @@ function patchIn<T extends { id: string }>(list: T[], id: string, patch: Partial
 }
 
 const repo: Repo = {
+  async acquireTryOnLease(token) {
+    const state = globalThis as typeof globalThis & { __tryOnLease?: { token: string; expires: number } };
+    if (state.__tryOnLease && state.__tryOnLease.expires > Date.now()) return false;
+    state.__tryOnLease = { token, expires: Date.now() + 240_000 };
+    return true;
+  },
+  async releaseTryOnLease(token) {
+    const state = globalThis as typeof globalThis & { __tryOnLease?: { token: string; expires: number } };
+    if (state.__tryOnLease?.token === token) delete state.__tryOnLease;
+  },
   mode: "demo",
   userId: DEMO_USER_ID,
   email: null,
@@ -172,11 +184,43 @@ const repo: Repo = {
     writeFileSync(path.join(UPLOAD_DIR, name), buf);
     return `/api/files/${name}`;
   },
+  async uploadPrivateImage(data, ext, purpose = "reference") {
+    const buf = Buffer.from(await data.arrayBuffer());
+    const name = `${crypto.randomUUID()}.${ext}`;
+    if (PERSIST) {
+      const dir = path.join(PRIVATE_UPLOAD_DIR, purpose);
+      mkdirSync(dir, { recursive: true });
+      writeFileSync(path.join(dir, name), buf);
+    } else {
+      privateImages.set(`${purpose}/${name}`, buf);
+    }
+    return `/api/try-on/file/${purpose}/${name}`;
+  },
+  async deletePrivateImage(url) {
+    const m = /\/api\/try-on\/file\/(?:(reference|result)\/)?([0-9a-f-]{36}\.(?:webp|png|jpg))$/.exec(url);
+    if (!m) return;
+    const key = m[1] ? `${m[1]}/${m[2]}` : m[2];
+    privateImages.delete(key);
+    if (PERSIST) rmSync(path.join(PRIVATE_UPLOAD_DIR, ...(m[1] ? [m[1], m[2]] : [m[2]])), { force: true });
+  },
+  async readPrivateImage(url) {
+    const m = /\/api\/try-on\/file\/(?:(reference|result)\/)?([0-9a-f-]{36}\.(?:webp|png|jpg))$/.exec(url);
+    if (!m) throw new Error("That try-on photo isn't yours");
+    const key = m[1] ? `${m[1]}/${m[2]}` : m[2];
+    if (!PERSIST) {
+      const image = privateImages.get(key);
+      if (!image) throw new Error("That try-on photo isn't yours");
+      return image;
+    }
+    return readFileSync(path.join(PRIVATE_UPLOAD_DIR, ...(m[1] ? [m[1], m[2]] : [m[2]])));
+  },
   async deleteImage(url) {
     const m = /^\/api\/files\/([0-9a-f-]{36}\.(?:webp|png|jpg))$/.exec(url);
     if (m) rmSync(path.join(UPLOAD_DIR, m[1]), { force: true });
   },
   async readImage(url) {
+      const sample = /^\/demo\/([a-z0-9-]+\.svg)$/.exec(url);
+      if (sample) return readFileSync(path.join(process.cwd(), "public", "demo", sample[1]));
     const data = /^data:[^;]+;base64,(.+)$/.exec(url);
     if (data) return Buffer.from(data[1], "base64");
     const m = /^\/api\/files\/([0-9a-f-]{36}\.(?:webp|png|jpg))$/.exec(url);

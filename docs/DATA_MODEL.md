@@ -46,3 +46,7 @@
 `- `item_embeddings` (pgvector) for dedupe + "similar items" + worn-photo matching
 `- `events` (calendar/trips) feeding the stylist
 `- `products` cache for shopping results
+
+## Try-on photo profile
+
+Migrations `0009_try_on_profile_refs.sql` and `0010_try_on_lease.sql` add private full-body, face and side references, reviewed qualitative observations, and an account-scoped operation lease. New personal images live in the private `try-on` bucket under `{user_id}/reference/` or `{user_id}/result/`; authenticated app routes serve them with `no-store`. Numeric measurements remain user-provided profile values. See `docs/TRY_ON.md` for behavior and validation limits.

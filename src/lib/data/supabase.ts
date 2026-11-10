@@ -16,6 +16,13 @@ export function supabaseRepo(sb: SupabaseClient, userId: string, email: string |
     mode: "supabase",
     userId,
     email,
+    async acquireTryOnLease(token) {
+      return Boolean(must(await sb.rpc("acquire_try_on_lease", { lease_token: token })));
+    },
+    async releaseTryOnLease(token) {
+      const { error } = await sb.rpc("release_try_on_lease", { lease_token: token });
+      if (error) throw new Error(error.message);
+    },
 
     // Closets are small (<1–2k rows) so we fetch and filter in memory —
     // keeps demo + real behavior identical. Push filters to SQL if this grows.
@@ -121,6 +128,31 @@ export function supabaseRepo(sb: SupabaseClient, userId: string, email: string |
       if (error) throw new Error(error.message);
       return sb.storage.from("wardrobe").getPublicUrl(path).data.publicUrl;
     },
+    async uploadPrivateImage(data, ext, purpose = "reference") {
+      const name = `${crypto.randomUUID()}.${ext}`;
+      const path = `${userId}/${purpose}/${name}`;
+      const { error } = await sb.storage.from("try-on").upload(path, data, {
+        contentType: data.type || `image/${ext}`,
+        upsert: false,
+      });
+      if (error) throw new Error(error.message);
+      return `/api/try-on/file/${purpose}/${name}`;
+    },
+    async deletePrivateImage(url) {
+      const match = /\/api\/try-on\/file\/(?:(reference|result)\/)?([0-9a-f-]{36}\.(?:webp|png|jpg))$/.exec(url);
+      if (!match) return;
+      const objectPath = match[1] ? `${userId}/${match[1]}/${match[2]}` : `${userId}/${match[2]}`;
+      const { error } = await sb.storage.from("try-on").remove([objectPath]);
+      if (error) throw new Error(error.message);
+    },
+    async readPrivateImage(url) {
+      const match = /\/api\/try-on\/file\/(?:(reference|result)\/)?([0-9a-f-]{36}\.(?:webp|png|jpg))$/.exec(url);
+      if (!match) throw new Error("That try-on photo isn't yours");
+      const objectPath = match[1] ? `${userId}/${match[1]}/${match[2]}` : `${userId}/${match[2]}`;
+      const { data, error } = await sb.storage.from("try-on").download(objectPath);
+      if (error) throw new Error(error.message);
+      return Buffer.from(await data.arrayBuffer());
+    },
     async deleteImage(url) {
       const marker = "/storage/v1/object/public/wardrobe/";
       const at = url.indexOf(marker);
@@ -187,13 +219,20 @@ export function supabaseRepo(sb: SupabaseClient, userId: string, email: string |
     },
     async deleteAccount() {
       // Files first: once the account is gone, nothing could remove them.
-      for (;;) {
-        const { data, error } = await sb.storage.from("wardrobe").list(userId, { limit: 100 });
-        if (error) throw new Error(error.message);
-        if (!data.length) break;
-        const removal = await sb.storage.from("wardrobe").remove(data.map((f) => `${userId}/${f.name}`));
-        if (removal.error) throw new Error(removal.error.message);
-        if (!removal.data?.length) throw new Error("Your photos couldn't be removed, so your account wasn't deleted");
+      for (const bucket of ["wardrobe", "try-on"] as const) {
+        const removeTree = async (prefix: string): Promise<void> => {
+          const { data, error } = await sb.storage.from(bucket).list(prefix, { limit: 100 });
+          if (error) throw new Error(error.message);
+          const files = data.filter((entry) => Boolean(entry.id)).map((entry) => `${prefix}/${entry.name}`);
+          if (files.length) {
+            const removal = await sb.storage.from(bucket).remove(files);
+            if (removal.error) throw new Error(removal.error.message);
+            if (!removal.data?.length) throw new Error("Your photos couldn't be removed, so your account wasn't deleted");
+          }
+          for (const folder of data.filter((entry) => !entry.id)) await removeTree(`${prefix}/${folder.name}`);
+            if (data.length === 100) await removeTree(prefix);
+        };
+        await removeTree(userId);
       }
       must(await sb.rpc("delete_my_account"));
     },

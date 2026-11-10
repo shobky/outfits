@@ -11,6 +11,7 @@ import type { Item } from "@/lib/types";
 import { cn, titleCase } from "@/lib/utils";
 import { ItemForm, type Draft } from "./item-form";
 import { ItemPhotos } from "./item-photos";
+import { TryOnButton } from "@/components/tryon/try-on";
 
 export function ItemSheet({ item, onClose }: { item: Item | null; onClose: () => void }) {
   // parent remounts this sheet per item (key), so state starts fresh
@@ -29,6 +30,7 @@ export function ItemSheet({ item, onClose }: { item: Item | null; onClose: () =>
 
   return (
     <Sheet open={!!item} onOpenChange={(o) => !o && onClose()} title={editing ? "Edit piece" : item.name}>
+      {!editing && <div className="mb-4"><TryOnButton itemIds={[item.id]} disabled={!item.image_url || item.status === "archived" || item.in_laundry} /></div>}
       {editing && draft ? (
         <div className="space-y-5 pb-6">
           <ItemForm value={draft} onChange={setDraft} />

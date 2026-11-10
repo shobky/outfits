@@ -30,6 +30,7 @@ const TOOL_META: Record<string, { label: string; icon: typeof Search; summary?: 
   get_profile: { label: "Reading your profile", icon: UserRound },
   update_profile: { label: "Updating your profile", icon: UserRound, summary: (_i, o) => ((o as { saved?: string[] })?.saved ?? []).join(", ") },
   web_search: { label: "Searching the web", icon: Globe, summary: (i) => String((i as { query?: string })?.query ?? "") },
+  search_products: { label: "Searching stores", icon: Search, summary: (i) => String((i as { query?: string })?.query ?? "") },
 };
 
 export const PROCESS_TOOLS = new Set(Object.keys(TOOL_META));

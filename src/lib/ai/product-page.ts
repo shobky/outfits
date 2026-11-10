@@ -1,6 +1,3 @@
-import { lookup } from "node:dns/promises";
-import { isIP } from "node:net";
-
 /**
  * Checks a product link the model found and reads real data from the retailer's page,
  * so cards show what the page says rather than what the model remembers.
@@ -14,30 +11,6 @@ export interface ProductFacts {
 }
 
 export type ProductCheck = { status: "ok"; url: string; facts: ProductFacts } | { status: "unverified" } | { status: "dead" };
-
-const TIMEOUT_MS = 5000;
-const MAX_BYTES = 1_500_000;
-const MAX_REDIRECTS = 3;
-
-function isPrivateIp(ip: string) {
-  if (ip.includes(":")) return /^(::1?$|f[cd]|fe[89ab]|::ffff:(10|127|192\.168|169\.254|172\.(1[6-9]|2\d|3[01]))\.)/i.test(ip);
-  const [a, b] = ip.split(".").map(Number);
-  return a === 0 || a === 10 || a === 127 || (a === 100 && b >= 64 && b <= 127) || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168);
-}
-
-/** The URL comes from model output, so it must never reach the server's own network. */
-async function isPublicUrl(url: URL) {
-  if (url.protocol !== "https:" && url.protocol !== "http:") return false;
-  const host = url.hostname.replace(/^\[|\]$/g, "");
-  if (host === "localhost" || host.endsWith(".local") || host.endsWith(".internal")) return false;
-  if (isIP(host)) return !isPrivateIp(host);
-  try {
-    const addresses = await lookup(host, { all: true });
-    return addresses.every((a) => !isPrivateIp(a.address));
-  } catch {
-    return false;
-  }
-}
 
 function decode(s: string) {
   return s.replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#0?39;/g, "'").replace(/&apos;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">").trim();
@@ -100,50 +73,32 @@ export function parseProductPage(html: string): ProductFacts {
   };
 }
 
-async function readCapped(res: Response) {
-  const reader = res.body?.getReader();
-  if (!reader) return "";
-  const chunks: Uint8Array[] = [];
-  let total = 0;
-  while (total < MAX_BYTES) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    chunks.push(value);
-    total += value.length;
-  }
-  await reader.cancel().catch(() => {});
-  return Buffer.concat(chunks).toString("utf8");
-}
-
 /**
  * "dead" means the retailer says the page doesn't exist, so the link should go.
  * "unverified" means we couldn't tell: many shops block servers, and that doesn't make a link wrong.
  */
 export async function checkProductUrl(raw: string): Promise<ProductCheck> {
-  let url: URL;
   try {
-    url = new URL(raw);
+    new URL(raw);
   } catch {
     return { status: "dead" };
   }
   try {
-    for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
-      if (!(await isPublicUrl(url))) return { status: "dead" };
-      const res = await fetch(url, {
-        redirect: "manual",
-        signal: AbortSignal.timeout(TIMEOUT_MS),
-        headers: { "user-agent": "Mozilla/5.0 (compatible; OutfitsApp/1.0)", accept: "text/html" },
-      });
-      const next = res.headers.get("location");
-      if (res.status >= 300 && res.status < 400 && next) {
-        url = new URL(next, url);
-        continue;
-      }
-      if (res.status === 404 || res.status === 410) return { status: "dead" };
-      if (!res.ok) return { status: "unverified" };
-      return { status: "ok", url: url.toString(), facts: parseProductPage(await readCapped(res)) };
-    }
-    return { status: "unverified" };
+    const { getShopProduct } = await import("../shop/service");
+    const result = await getShopProduct(raw);
+    if (result.status === "dead") return { status: "dead" };
+    if (result.status !== "ok") return { status: "unverified" };
+    return {
+      status: "ok",
+      url: result.product.url,
+      facts: {
+        title: result.product.title,
+        image_url: result.product.image_url,
+        price: result.product.price,
+        currency: result.product.currency,
+        retailer: result.product.retailer,
+      },
+    };
   } catch {
     return { status: "unverified" };
   }

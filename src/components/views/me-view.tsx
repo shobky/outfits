@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ChatGPTButton, ChatGPTMark, ManageUsage, useChatGPT } from "@/components/chatgpt";
 import { GarmentImage } from "@/components/drawer/item-card";
+import { ProfilePhotoSetup } from "@/components/profile/profile-photo-setup";
 import { toast } from "sonner";
 import { Field, MultiChips } from "@/components/drawer/attribute-picker";
 import { Button } from "@/components/ui/button";
@@ -79,6 +80,7 @@ function ChatGPTPlan({ onChange }: { onChange: () => Promise<unknown> | void }) 
 
 function ProfileForm({ data, onSaved }: { data: NonNullable<ReturnType<typeof useProfile>["data"]>; onSaved: () => Promise<unknown> | void }) {
   const [p, setP] = useState<Profile>(data.profile);
+  const [saveBusy, setSaveBusy] = useState(false);
   const { theme, setTheme } = useTheme();
   const router = useRouter();
   const set = <K extends keyof Profile>(k: K, v: Profile[K]) => setP({ ...p, [k]: v });
@@ -90,6 +92,10 @@ function ProfileForm({ data, onSaved }: { data: NonNullable<ReturnType<typeof us
         <div className="grid grid-cols-2 gap-2">
           <Status ok={data.supabase || data.local} label={data.supabase ? "Synced (Supabase)" : data.local ? "Saved on this machine" : "Demo data (in memory)"} />
           <Status ok={data.ai} label={data.ai ? "AI connected" : "AI in demo mode"} />
+        </div>
+
+        <div id="try-on-profile" className="scroll-mt-20">
+          <ProfilePhotoSetup profile={data.profile} onSaved={onSaved} />
         </div>
 
         <UsageCard />
@@ -106,31 +112,31 @@ function ProfileForm({ data, onSaved }: { data: NonNullable<ReturnType<typeof us
           <h2 className="font-semibold tracking-tight">About you</h2>
           <p className="-mt-3 text-[13px] text-muted">The stylist uses this for fit, sizing and color advice. You can also just tell it in chat.</p>
           <Field label="Name">
-            <input className={input} value={p.display_name ?? ""} onChange={(e) => set("display_name", e.target.value)} />
+            <input aria-label="Name" className={input} value={p.display_name ?? ""} onChange={(e) => set("display_name", e.target.value)} />
           </Field>
           <Field label="I shop">
             <MultiChips single options={["menswear", "womenswear", "both"] as const} value={[p.menswear]} onChange={([v]) => set("menswear", v)} />
           </Field>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Height (cm)">
-              <input className={input} inputMode="numeric" value={p.height_cm ?? ""} onChange={(e) => set("height_cm", e.target.value ? Number(e.target.value) : null)} />
+              <input aria-label="Height (cm)" className={input} inputMode="numeric" value={p.height_cm ?? ""} onChange={(e) => set("height_cm", e.target.value ? Number(e.target.value) : null)} />
             </Field>
             <Field label="Weight (kg)">
-              <input className={input} inputMode="numeric" value={p.weight_kg ?? ""} onChange={(e) => set("weight_kg", e.target.value ? Number(e.target.value) : null)} />
+              <input aria-label="Weight (kg)" className={input} inputMode="numeric" value={p.weight_kg ?? ""} onChange={(e) => set("weight_kg", e.target.value ? Number(e.target.value) : null)} />
             </Field>
           </div>
           <Field label="Build">
-            <input className={input} placeholder="slim, athletic, broad shoulders…" value={p.build ?? ""} onChange={(e) => set("build", e.target.value || null)} />
+            <input aria-label="Build" className={input} placeholder="slim, athletic, broad shoulders…" value={p.build ?? ""} onChange={(e) => set("build", e.target.value || null)} />
           </Field>
           <div className="grid grid-cols-2 gap-3">
             {(["top", "waist", "inseam", "shoe_eu"] as const).map((k) => (
               <Field key={k} label={k === "shoe_eu" ? "Shoe (EU)" : `${k[0].toUpperCase()}${k.slice(1)} size`}>
-                <input className={input} value={p.sizes[k] ?? ""} onChange={(e) => set("sizes", { ...p.sizes, [k]: e.target.value })} />
+                <input aria-label={k === "shoe_eu" ? "Shoe (EU)" : `${k[0].toUpperCase()}${k.slice(1)} size`} className={input} value={p.sizes[k] ?? ""} onChange={(e) => set("sizes", { ...p.sizes, [k]: e.target.value })} />
               </Field>
             ))}
           </div>
           <Field label="Home city">
-            <input className={input} placeholder="For weather" value={p.home_city ?? ""} onChange={(e) => set("home_city", e.target.value || null)} />
+            <input aria-label="Home city" className={input} placeholder="For weather" value={p.home_city ?? ""} onChange={(e) => set("home_city", e.target.value || null)} />
           </Field>
         </section>
 
@@ -140,32 +146,44 @@ function ProfileForm({ data, onSaved }: { data: NonNullable<ReturnType<typeof us
             <MultiChips options={STYLE_OPTIONS} value={p.style_keywords} onChange={(v) => set("style_keywords", v)} />
           </Field>
           <Field label="Favorite colors (comma separated)">
-            <input className={input} value={p.favorite_colors.join(", ")} onChange={(e) => set("favorite_colors", list(e.target.value))} />
+            <input aria-label="Favorite colors" className={input} value={p.favorite_colors.join(", ")} onChange={(e) => set("favorite_colors", list(e.target.value))} />
           </Field>
           <Field label="Avoid (colors, fits, items)">
-            <input className={input} value={p.avoid.join(", ")} onChange={(e) => set("avoid", list(e.target.value))} />
+            <input aria-label="Avoid" className={input} value={p.avoid.join(", ")} onChange={(e) => set("avoid", list(e.target.value))} />
           </Field>
           <Field label="Budget">
             <MultiChips single options={["low", "mid", "high"] as const} value={p.budget ? [p.budget] : []} onChange={([v]) => set("budget", v)} />
           </Field>
           <Field label="Currency">
-            <input className={input} value={p.currency} onChange={(e) => set("currency", e.target.value.toUpperCase())} />
+            <input aria-label="Currency" className={input} value={p.currency} onChange={(e) => set("currency", e.target.value.toUpperCase())} />
           </Field>
           <Field label="Anything else the stylist should know">
-            <textarea className={`${input} h-auto min-h-24 py-3`} value={p.notes ?? ""} onChange={(e) => set("notes", e.target.value || null)} />
+            <textarea aria-label="Anything else the stylist should know" className={`${input} h-auto min-h-24 py-3`} value={p.notes ?? ""} onChange={(e) => set("notes", e.target.value || null)} />
           </Field>
         </section>
 
         <Button
           size="lg"
           className="w-full"
+          disabled={saveBusy}
           onClick={async () => {
-            await api("/api/profile", "PATCH", p);
-            await onSaved();
-            toast.success("Profile saved");
+            setSaveBusy(true);
+            try {
+              // Keep photo references and reviewed insights on their dedicated
+              // endpoints. This draft can predate a photo upload; sending it
+              // wholesale would otherwise erase newer references.
+              const editable = Object.fromEntries(Object.entries(p).filter(([key]) => !["id", "try_on_photo_url", "try_on_photos", "try_on_insights", "limits_off", "dev_features"].includes(key))) as Partial<Profile>;
+              await api("/api/profile", "PATCH", editable);
+              await onSaved();
+              toast.success("Profile saved");
+            } catch (error) {
+              toast.error(`Couldn’t save your profile: ${error instanceof Error ? error.message : String(error)}`);
+            } finally {
+              setSaveBusy(false);
+            }
           }}
         >
-          Save profile
+          {saveBusy ? "Saving…" : "Save profile"}
         </Button>
 
         {data.supabase && (

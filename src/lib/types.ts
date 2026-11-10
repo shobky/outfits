@@ -107,9 +107,34 @@ export interface Profile {
   notes: string | null;
   /** Developer switch. The app ignores it unless the address is in ALLOWED_EMAILS. */
   try_on_photo_url?: string | null;
+  /** Reference photos used to preserve the person's identity and proportions in try-on previews. */
+  try_on_photos?: TryOnPhoto[];
+  /** User-reviewed visual observations from their reference photos. Never contains guessed measurements. */
+  try_on_insights?: TryOnInsights | null;
   limits_off?: boolean;
   /** Developer switches for premium features. Ignored unless the address is in ALLOWED_EMAILS. */
   dev_features?: string[];
+}
+
+export type TryOnPhotoKind = "full_body" | "face" | "side";
+
+export interface TryOnPhoto {
+  url: string;
+  kind: TryOnPhotoKind;
+  created_at: string;
+}
+
+export interface TryOnInsights {
+  /** Broad, visible proportions only. Values are deliberately qualitative. */
+  shoulders: "narrow" | "balanced" | "broad" | null;
+  torso: "short" | "balanced" | "long" | null;
+  leg_line: "short" | "balanced" | "long" | null;
+  silhouette: "slim" | "balanced" | "broad" | null;
+  posture: "relaxed" | "upright" | "dynamic" | null;
+  fit_notes: string;
+  confidence: number;
+  source_photo_urls: string[];
+  generated_at: string;
 }
 
 export interface WeatherSnapshot {
