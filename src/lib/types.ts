@@ -12,6 +12,9 @@ export interface ItemImage {
 }
 
 export interface Item {
+  garment_dimensions?: { width_cm: number | null; length_cm: number | null; source: "user" } | null;
+  /** Photo pixels, never physical centimetres. */
+  photo_geometry?: { width_px: number; height_px: number; aspect_ratio: number } | null;
   id: string;
   user_id: string;
   name: string;
@@ -116,6 +119,27 @@ export interface Profile {
   dev_features?: string[];
 }
 
+export interface TryOnRun {
+  id: string;
+  user_id: string;
+  created_at: string;
+  result_url: string;
+  recipe: {
+    item_ids: string[];
+    product?: { url: string; image_url: string };
+    person_url: string;
+    identity_urls: string[];
+    garment_urls: string[];
+    fit_context: string;
+    garment_context: string;
+    title: string;
+    model?: string;
+    cost_usd?: number;
+    chat_id?: string;
+    tool_call_id?: string;
+  };
+}
+
 export type TryOnPhotoKind = "full_body" | "face" | "side";
 
 export interface TryOnPhoto {
@@ -156,6 +180,28 @@ export interface ChatSession {
   title: string;
   updated_at: string;
   created_at: string;
+}
+
+/** A short-lived, owner-scoped handoff from the OS share sheet. */
+export interface ShareIntent {
+  id: string;
+  user_id: string;
+  title: string | null;
+  text: string | null;
+  url: string | null;
+  photos: string[];
+  created_at: string;
+  expires_at: string;
+}
+
+export interface PushSubscriptionRecord {
+  id: string;
+  user_id: string;
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface ItemFilters {
@@ -209,7 +255,7 @@ export interface IntakeGroup {
   worn?: boolean;
   step: string | null;
   views: IntakeView[];
-  draft: Pick<ItemInput, "name" | "category" | "subcategory" | "colors" | "pattern" | "material" | "fit" | "seasons" | "occasions" | "formality" | "warmth" | "brand" | "size" | "notes">;
+  draft: Pick<ItemInput, "name" | "category" | "subcategory" | "colors" | "pattern" | "material" | "fit" | "seasons" | "occasions" | "formality" | "warmth" | "brand" | "size" | "notes" | "garment_dimensions">;
   description: string | null;
   facts: string | null;
   confidence: number;

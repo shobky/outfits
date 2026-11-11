@@ -1,4 +1,5 @@
 import "server-only";
+import { photoGeometry } from "../image/geometry";
 import type { Repo } from "../data/repo";
 import type { IntakeBatch, IntakeGroup, IntakeView, ItemImage, ItemInput } from "../types";
 import { explainAIError, resolveAI } from "../ai/provider";
@@ -31,7 +32,7 @@ function draftOf(g: AnalyzedGroup): IntakeGroup["draft"] {
     formality: g.formality,
     warmth: g.warmth,
     brand: g.brand,
-    size: null,
+    size: g.size ?? null,
     notes: null,
   };
 }
@@ -236,7 +237,9 @@ function itemPhotos(views: IntakeView[]): Pick<ItemInput, "image_url" | "origina
 }
 
 export async function addItem(repo: Repo, group: Pick<IntakeGroup, "draft" | "views" | "description" | "worn">) {
-  const base = { ...group.draft, description: group.description, status: "active" as const, in_laundry: false, is_favorite: false };
+  const front = group.views.find((view) => view.view === "front") ?? group.views[0];
+  const geometry = await photoGeometry(repo, front?.result_url ?? front?.photo_url);
+  const base = { ...group.draft, photo_geometry: geometry, description: group.description, status: "active" as const, in_laundry: false, is_favorite: false };
   if (!group.worn) return repo.createItem({ ...base, ...itemPhotos(group.views) } as ItemInput);
   // Pieces from one photo each get their own copy of it, so deleting one can't break another.
   const source = group.views[0];

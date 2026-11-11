@@ -4,6 +4,12 @@ import { test, expect, type APIRequestContext } from "@playwright/test";
 import { demoRepo } from "../../src/lib/data/demo";
 
 const buffer = fs.readFileSync(path.join(__dirname, "../fixtures/tee-phone.jpg"));
+test("missing image credentials produce an actionable configuration error", async ({ request }) => {
+  await request.post("/api/dev", { data: { feature: "try_on", on: true } });
+  const response = await request.post("/api/try-on", { data: { item_ids: ["example"] } });
+  expect(response.status()).toBe(503);
+  expect((await response.json()).code).toBe("image_api_not_configured");
+});
 test("a fitting-room lease admits one caller and only its token can release it", async () => {
   const first = crypto.randomUUID();
   const second = crypto.randomUUID();

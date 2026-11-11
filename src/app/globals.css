@@ -103,6 +103,12 @@ body {
   text-rendering: optimizeLegibility;
 }
 
+.font-display {
+  font-family: var(--font-display), Georgia, serif;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+}
+
 ::selection {
   background: var(--accent);
   color: var(--accent-fg);
@@ -161,4 +167,18 @@ body {
   background-clip: text;
   color: transparent;
   animation: shimmer 2.2s linear infinite;
+}
+
+:where(button, a, input, textarea, select, summary):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

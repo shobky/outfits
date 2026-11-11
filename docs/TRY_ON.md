@@ -29,11 +29,32 @@ Supabase. They add reference/observation profile fields, the private bucket, and
 an account-scoped lease that serializes reference changes and generation across
 server instances. No database migration or deployment is performed by local verification.
 
-Previews are downloaded explicitly and deleted when the sheet closes. If a
-browser crashes or a cleanup request cannot reach the server, a private file can
-remain until account deletion; there is no scheduled retention cleanup yet.
-An interrupted upload before its reference is attached can also leave a private
-file. Account deletion removes both private and wardrobe files.
+Previews are saved automatically with private copies of the original person,
+optional identity references, garment inputs, sizing context, model, cost and
+creation time. Apply `20261110183548_saved_try_ons_and_garment_dimensions.sql`
+before deploying this behavior. Closing the sheet does not delete a result.
+Profile → Saved try-ons reopens or explicitly deletes it. Chat proposals also
+reopen matching results using the conversation and tool-call identifiers.
+Recreation uses the saved input copies and context, runs the currently configured
+image model, consumes a new allowance and may produce a different image.
+
+“Photo for this look” uses a one-off photo without replacing the profile. It is
+kept in browser memory until generation and sent in the same multipart request;
+no abandoned server upload is created by simply choosing a photo. Saved face,
+side and photo-derived observations are excluded for this override. User-entered
+measurements still apply, so the UI asks for a photo of the account owner.
+
+Garment labels can be read during catalogue analysis when clearly visible;
+unreadable sizes remain unknown. Physical widths and lengths are user-entered
+flat garment measurements, distinct from photo pixel dimensions. Retailer
+try-on accepts the size being considered, explicitly without verified physical
+measurements. The prompt preserves oversized/tight silhouettes and forbids
+tailoring clothes to flatter the person, but this does not establish real fit.
+
+An interrupted profile upload before attachment or an interrupted multi-file
+save can still leave private files; scheduled orphan cleanup is not implemented.
+Account deletion removes both private and wardrobe files. Successful result
+records remain until explicitly deleted; do not assume automatic expiry.
 
 Generated previews may alter faces, body proportions, garment details and drape.
 They are visual approximations, not real photographs or a sizing guarantee.

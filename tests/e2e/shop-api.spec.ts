@@ -39,7 +39,8 @@ test("wishlist validates currency and links, and restricts writable fields", asy
 });
 
 test("shop try-on stays gated without triggering a model call", async ({ request }) => {
+  await request.post("/api/dev", { data: { feature: "try_on", on: false } });
   const response = await request.post("/api/try-on", { data: { product: { url: "https://townteam.com/products/shirt", image_url: "https://example.com/shirt.jpg" } } });
-  expect([400, 403]).toContain(response.status());
+  expect(response.status()).toBe(403);
   expect((await response.json()).error).toBeTruthy();
 });

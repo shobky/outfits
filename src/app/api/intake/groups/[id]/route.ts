@@ -2,6 +2,7 @@ import { after } from "next/server";
 import { getRepo, unauthorized } from "@/lib/data";
 import { addItem, runGroup } from "@/lib/intake/run";
 import type { IntakeGroup } from "@/lib/types";
+import { garmentDimensionsSchema } from "@/lib/garment-dimensions";
 
 export const maxDuration = 300;
 
@@ -13,6 +14,7 @@ export async function POST(req: Request, ctx: RouteContext<"/api/intake/groups/[
   if (!repo) return unauthorized();
   const { id } = await ctx.params;
   const { action, draft } = (await req.json()) as Body;
+  if (draft?.garment_dimensions !== undefined && !garmentDimensionsSchema.safeParse(draft.garment_dimensions).success) return Response.json({ error: "Enter valid garment dimensions in cm." }, { status: 400 });
   const group = await repo.getIntakeGroup(id);
   if (!group) return Response.json({ error: "Piece not found" }, { status: 404 });
   const current = draft ? { ...group, draft } : group;

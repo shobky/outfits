@@ -7,6 +7,8 @@ import { useState } from "react";
 import { ChatGPTButton, ChatGPTMark, ManageUsage, useChatGPT } from "@/components/chatgpt";
 import { GarmentImage } from "@/components/drawer/item-card";
 import { ProfilePhotoSetup } from "@/components/profile/profile-photo-setup";
+import { SavedTryOns } from "@/components/tryon/saved-try-ons";
+import { PushSettings } from "@/components/pwa/push-settings";
 import { toast } from "sonner";
 import { Field, MultiChips } from "@/components/drawer/attribute-picker";
 import { Button } from "@/components/ui/button";
@@ -97,7 +99,14 @@ function ProfileForm({ data, onSaved }: { data: NonNullable<ReturnType<typeof us
         <div id="try-on-profile" className="scroll-mt-20">
           <ProfilePhotoSetup profile={data.profile} onSaved={onSaved} />
         </div>
+        <section className="space-y-3 rounded-[28px] bg-surface p-5">
+          <h2 className="font-semibold tracking-tight">Bring something in</h2>
+          <p className="text-[13px] leading-relaxed text-muted">Share a clothing photo or product link from another app. On iPhone, use the manual picker if the system share target is unavailable.</p>
+          <Link href="/share" className="flex min-h-11 items-center justify-center rounded-full bg-surface-2 px-4 text-sm font-medium">Open share inbox</Link>
+        </section>
 
+        <SavedTryOns />
+        <PushSettings />
         <UsageCard />
 
         <ChatGPTPlan onChange={onSaved} />
@@ -191,6 +200,15 @@ function ProfileForm({ data, onSaved }: { data: NonNullable<ReturnType<typeof us
             variant="ghost"
             className="w-full text-muted"
             onClick={async () => {
+                if ("serviceWorker" in navigator) {
+                  try {
+                    const subscription = await (await navigator.serviceWorker.getRegistration())?.pushManager.getSubscription();
+                    if (subscription) {
+                      await api("/api/push/subscribe", "DELETE", { endpoint: subscription.endpoint });
+                      await subscription.unsubscribe();
+                    }
+                  } catch { /* Sign-out must still work if push is unavailable. */ }
+                }
               const { createClient } = await import("@/lib/supabase/client");
               await createClient().auth.signOut();
               router.replace("/login");

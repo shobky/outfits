@@ -78,10 +78,12 @@ function CopyButton({ text }: { text: string }) {
 
 export const Message = memo(function Message({
   message,
+  chatId,
   streaming,
   onAnswer,
 }: {
   message: DrawerUIMessage;
+  chatId?: string;
   streaming: boolean;
   onAnswer: (toolCallId: string, answer: string) => void;
 }) {
@@ -117,12 +119,12 @@ export const Message = memo(function Message({
             let end = i;
             while (isOutfit(blocks[end + 1])) end++;
             const group = blocks.slice(i, end + 1) as Extract<Block, { kind: "tool" }>[];
-            if (group.length === 1) return <ToolBlock key={i} part={group[0].part} name={group[0].name} onAnswer={onAnswer} />;
+            if (group.length === 1) return <ToolBlock key={i} part={group[0].part} name={group[0].name} onAnswer={onAnswer} chatId={chatId} />;
             return (
               <div key={i} className="no-scrollbar -mx-1 flex snap-x snap-mandatory gap-3 overflow-x-auto px-1 pb-1">
                 {group.map((g) => (
                   <div key={g.part.toolCallId} className="w-[86%] max-w-[420px] shrink-0 snap-start">
-                    <ToolBlock part={g.part} name={g.name} onAnswer={onAnswer} />
+                    <ToolBlock part={g.part} name={g.name} onAnswer={onAnswer} chatId={chatId} />
                   </div>
                 ))}
               </div>
@@ -149,7 +151,7 @@ export const Message = memo(function Message({
                 </a>
               );
             case "tool":
-              return <ToolBlock key={i} part={b.part} name={b.name} onAnswer={onAnswer} />;
+              return <ToolBlock key={i} part={b.part} name={b.name} onAnswer={onAnswer} chatId={chatId} />;
           }
         })}
         {!streaming && fullText && (
@@ -162,7 +164,7 @@ export const Message = memo(function Message({
   );
 });
 
-function ToolBlock({ part, name, onAnswer }: { part: AnyTool; name: string; onAnswer: (id: string, a: string) => void }) {
+function ToolBlock({ part, name, onAnswer, chatId }: { part: AnyTool; name: string; onAnswer: (id: string, a: string) => void; chatId?: string }) {
   const ready = part.state === "output-available";
   if (part.state === "output-error") return <p className="text-sm text-danger">Tool {name} failed: {part.errorText}</p>;
 
@@ -182,7 +184,7 @@ function ToolBlock({ part, name, onAnswer }: { part: AnyTool; name: string; onAn
     case "compose_outfit":
       return ready ? <OutfitCard outfit={part.output as OutfitResult} /> : <Skeleton className="aspect-[4/5] max-w-[420px]" label="Laying out the outfit…" />;
     case "suggest_try_on":
-      return ready ? <TryOnSuggestion {...(part.output as Parameters<typeof TryOnSuggestion>[0])} /> : <Skeleton className="h-44 max-w-md" label="Preparing your fitting room…" />;
+      return ready ? <TryOnSuggestion {...(part.output as Parameters<typeof TryOnSuggestion>[0])} chatId={chatId} toolCallId={part.toolCallId} /> : <Skeleton className="h-44 max-w-md" label="Preparing your fitting room…" />;
     case "check_product":
       return ready ? <ProductCheckCard product={part.output as ProductCheckResult} /> : <Skeleton className="h-24 max-w-[420px]" label="Reading the product page…" />;
     case "show_items":

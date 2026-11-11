@@ -138,7 +138,7 @@ for (const url of ["/", "/outfits", "/add", "/shop", "/me"]) {
 test("fields are 16px on touch screens, so iOS doesn't zoom the page", async ({ page }) => {
   await page.goto("/add");
   await page.goto("/me");
-  const input = page.locator("input").first();
+  const input = page.locator("input:not([type=file]):visible").first();
   await expect(input).toBeVisible();
   expect(await input.evaluate((el) => getComputedStyle(el).fontSize)).toBe("16px");
 });

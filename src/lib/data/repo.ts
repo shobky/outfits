@@ -1,5 +1,5 @@
 import type { UIMessage } from "ai";
-import type { AdminOverview, AiSpendKind, ChatSession, IntakeBatch, IntakeGroup, Item, ItemFilters, ItemInput, NewIntakeGroup, Outfit, Profile, WishlistItem } from "../types";
+import type { AdminOverview, AiSpendKind, ChatSession, IntakeBatch, IntakeGroup, Item, ItemFilters, ItemInput, NewIntakeGroup, Outfit, Profile, PushSubscriptionRecord, ShareIntent, WishlistItem } from "../types";
 
 /**
  * Data access layer. Two implementations:
@@ -12,6 +12,10 @@ export interface Repo {
   userId: string;
   email: string | null;
   acquireTryOnLease(token: string): Promise<boolean>;
+  listTryOnRuns(): Promise<import("../types").TryOnRun[]>;
+  getTryOnRun(id: string): Promise<import("../types").TryOnRun | null>;
+  saveTryOnRun(input: Pick<import("../types").TryOnRun, "result_url" | "recipe">): Promise<import("../types").TryOnRun>;
+  deleteTryOnRun(id: string): Promise<void>;
   releaseTryOnLease(token: string): Promise<void>;
 
   listItems(filters?: ItemFilters): Promise<Item[]>;
@@ -39,6 +43,13 @@ export interface Repo {
   getChat(id: string): Promise<{ session: ChatSession; messages: UIMessage[] } | null>;
   saveChat(id: string, messages: UIMessage[], title?: string): Promise<void>;
   deleteChat(id: string): Promise<void>;
+
+  createShareIntent(input: Omit<ShareIntent, "id" | "user_id" | "created_at" | "expires_at">): Promise<ShareIntent>;
+  getShareIntent(id: string): Promise<ShareIntent | null>;
+  deleteShareIntent(id: string): Promise<void>;
+  savePushSubscription(input: Pick<PushSubscriptionRecord, "endpoint" | "p256dh" | "auth">): Promise<void>;
+  listPushSubscriptions(): Promise<PushSubscriptionRecord[]>;
+  deletePushSubscription(endpoint: string): Promise<void>;
 
   /** Stores an image and returns a public URL. */
   uploadImage(data: Blob, ext: "webp" | "png" | "jpg"): Promise<string>;

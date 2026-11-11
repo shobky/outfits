@@ -175,6 +175,7 @@ function LoginForm() {
 
   return (
     <div className="space-y-6">
+      {params.get("share") === "retry" && <p role="status" className="rounded-2xl bg-surface p-4 text-sm text-muted">Sign in, then share your photo or product link again. Nothing from the share was uploaded while you were signed out.</p>}
       <ChatGPTOption />
       <form
         className="space-y-3"

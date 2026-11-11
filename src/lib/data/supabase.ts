@@ -16,6 +16,10 @@ export function supabaseRepo(sb: SupabaseClient, userId: string, email: string |
     mode: "supabase",
     userId,
     email,
+    async listTryOnRuns() { return must(await sb.from("try_on_runs").select("*").eq("user_id", userId).order("created_at", { ascending: false })) as import("../types").TryOnRun[]; },
+    async getTryOnRun(id) { return must(await sb.from("try_on_runs").select("*").eq("user_id", userId).eq("id", id).maybeSingle()) as import("../types").TryOnRun | null; },
+    async saveTryOnRun(input) { return must(await sb.from("try_on_runs").insert({ ...input, user_id: userId }).select().single()) as import("../types").TryOnRun; },
+    async deleteTryOnRun(id) { const { error } = await sb.from("try_on_runs").delete().eq("user_id", userId).eq("id", id); if (error) throw new Error(error.message); },
     async acquireTryOnLease(token) {
       return Boolean(must(await sb.rpc("acquire_try_on_lease", { lease_token: token })));
     },
@@ -118,6 +122,23 @@ export function supabaseRepo(sb: SupabaseClient, userId: string, email: string |
     async deleteChat(id) {
       must(await sb.from("chats").delete().eq("id", id));
     },
+    async createShareIntent(input) {
+      return must(await sb.from("share_intents").insert({ ...input, user_id: userId }).select().single()) as import("../types").ShareIntent;
+    },
+    async getShareIntent(id) {
+      const row = must(await sb.from("share_intents").select("*").eq("user_id", userId).eq("id", id).gt("expires_at", new Date().toISOString()).maybeSingle());
+      return row as import("../types").ShareIntent | null;
+    },
+    async deleteShareIntent(id) {
+      must(await sb.from("share_intents").delete().eq("user_id", userId).eq("id", id));
+    },
+    async listPushSubscriptions() { return must(await sb.from("push_subscriptions").select("*").eq("user_id", userId).limit(10)) as import("../types").PushSubscriptionRecord[]; },
+    async savePushSubscription(input) {
+      must(await sb.from("push_subscriptions").upsert({ ...input, user_id: userId, updated_at: new Date().toISOString() }, { onConflict: "user_id,endpoint" }));
+    },
+    async deletePushSubscription(endpoint) {
+      must(await sb.from("push_subscriptions").delete().eq("user_id", userId).eq("endpoint", endpoint));
+    },
 
     async uploadImage(data, ext) {
       const path = `${userId}/${crypto.randomUUID()}.${ext}`;
@@ -154,6 +175,7 @@ export function supabaseRepo(sb: SupabaseClient, userId: string, email: string |
       return Buffer.from(await data.arrayBuffer());
     },
     async deleteImage(url) {
+      if (url.startsWith("/api/try-on/file/")) return this.deletePrivateImage(url);
       const marker = "/storage/v1/object/public/wardrobe/";
       const at = url.indexOf(marker);
       if (at < 0) return;
@@ -163,6 +185,7 @@ export function supabaseRepo(sb: SupabaseClient, userId: string, email: string |
       if (error) throw new Error(error.message);
     },
     async readImage(url) {
+      if (url.startsWith("/api/try-on/file/")) return this.readPrivateImage(url);
       const marker = "/storage/v1/object/public/wardrobe/";
       const at = url.indexOf(marker);
       const path = at < 0 ? "" : decodeURIComponent(url.slice(at + marker.length).split("?")[0]);

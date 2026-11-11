@@ -1,4 +1,7 @@
 import { defineConfig } from "@playwright/test";
+// Repo unit tests run in Playwright workers too, not just the web server.
+// Never let them read or write the developer's actual local wardrobe.
+process.env.LOCAL_PERSIST = "0";
 const port = Number(process.env.E2E_PORT || 3100);
 
 /** Runs against a local-mode production build: no Supabase, no AI key, nothing saved to .data/. */

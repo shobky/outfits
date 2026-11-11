@@ -7,7 +7,7 @@ import { frameGarment, isCleanCutout, uprightJpeg } from "../image/frame";
  * garments (docs/RESEARCH.md): 2.5 Sunburst was the most faithful of the models that
  * return real transparency, once the photo was upright and the prompt carried facts.
  */
-const IMAGE_MODEL = () => process.env.IMAGE_MODEL || "gpt-image-2.5-sunburst";
+const IMAGE_MODEL = () => process.env.IMAGE_MODEL || "gpt-image-2.6-sunburst";
 /** $ per million tokens for GPT Image 2.5 models, per OpenAI's docs, 2026-11. */
 const USD_PER_M = { text: 5, image: 8, output: 30 };
 const TIMEOUT_MS = 150_000;
@@ -41,8 +41,10 @@ Background must be fully transparent. No hanger, surface, props, text or cast sh
 export const studioEnabled = (owner: string) => resolveAI(owner).source === "key";
 
 export async function callImageEdit(opts: { prompt: string; images: Buffer[]; size: "1024x1024" | "1024x1536"; background: "transparent" | "opaque"; format: "png" | "jpeg" }) {
+  const model = IMAGE_MODEL();
+  if (!/^gpt-image-2\.[56]-(sunburst|flare)$/.test(model)) throw new Error("Choose a supported Image 2.5 or 2.6 model with verified pricing.");
   const form = new FormData();
-  form.append("model", IMAGE_MODEL());
+  form.append("model", model);
   form.append("prompt", opts.prompt);
   // Order matters: the prompts describe the images by position.
   opts.images.forEach((b, i) => form.append("image[]", new Blob([new Uint8Array(b)], { type: "image/jpeg" }), `image-${i + 1}.jpg`));
@@ -68,7 +70,7 @@ export async function callImageEdit(opts: { prompt: string; images: Buffer[]; si
   }
   const d = body.usage?.input_tokens_details;
   const usd = ((d?.text_tokens ?? 0) * USD_PER_M.text + (d?.image_tokens ?? 0) * USD_PER_M.image + (body.usage?.output_tokens ?? 0) * USD_PER_M.output) / 1e6;
-  return { image: Buffer.from(body.data[0].b64_json, "base64"), usd };
+  return { image: Buffer.from(body.data[0].b64_json, "base64"), usd, model };
 }
 
 const ATTEMPTS = 3;

@@ -1,8 +1,11 @@
 import type { Metadata, Viewport } from "next";
 import { GeistMono } from "geist/font/mono";
 import { GeistSans } from "geist/font/sans";
+import { Instrument_Serif } from "next/font/google";
 import { Providers } from "@/components/providers";
 import "./globals.css";
+
+const display = Instrument_Serif({ weight: "400", style: ["normal", "italic"], subsets: ["latin"], display: "swap", variable: "--font-display" });
 
 export const metadata: Metadata = {
   title: { default: "Outfits", template: "%s · Outfits" },
@@ -50,7 +53,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" suppressHydrationWarning className={`${GeistSans.variable} ${GeistMono.variable} h-full`}>
+    <html lang="en" suppressHydrationWarning className={`${GeistSans.variable} ${GeistMono.variable} ${display.variable} h-full`}>
       <body className="min-h-full">
         <Providers>{children}</Providers>
       </body>

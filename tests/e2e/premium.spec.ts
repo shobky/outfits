@@ -118,11 +118,11 @@ test.describe("try-on", () => {
     // The real call needs the API key, so the answer is stubbed.
     await page.route("**/api/try-on", (r) => (r.request().method() === "POST" ? r.fulfill({ json: { url: "/demo/tee-white.svg" } }) : r.fulfill({ json: { ok: true } })));
     await sheet.getByRole("button", { name: "See it on me" }).click();
-    await expect(sheet.getByText("AI preview, not a real photo")).toBeVisible();
+    await expect(sheet.getByText(/AI preview, not a real photo/)).toBeVisible();
 
     await page.unroute("**/api/try-on");
     page.on("dialog", (d) => d.accept());
-    await sheet.getByRole("button", { name: "Remove photo" }).click();
+    await sheet.getByRole("button", { name: "Use profile photo" }).click();
     await expect(sheet.getByText("Add a photo of yourself")).toBeVisible();
   });
 

@@ -12,6 +12,7 @@ import { cn, titleCase } from "@/lib/utils";
 import { ItemForm, type Draft } from "./item-form";
 import { ItemPhotos } from "./item-photos";
 import { TryOnButton } from "@/components/tryon/try-on";
+import { ShareButton } from "@/components/share/share-button";
 
 export function ItemSheet({ item, onClose }: { item: Item | null; onClose: () => void }) {
   // parent remounts this sheet per item (key), so state starts fresh
@@ -70,6 +71,7 @@ export function ItemSheet({ item, onClose }: { item: Item | null; onClose: () =>
           <Button variant="accent" size="lg" className="w-full" onClick={() => router.push(`/stylist?q=${encodeURIComponent(`Style my ${item.name.toLowerCase()} (id ${item.id}) for today`)}`)}>
             <Sparkles className="size-4" /> Style this piece
           </Button>
+          {item.image_url && <ShareButton title={`Style my ${item.name}`} text={`Style my ${item.name} with Outfits.`} url={`/stylist?q=${encodeURIComponent(`Style my ${item.name.toLowerCase()} (id ${item.id}) for today`)}`} files={[{ url: item.image_url, name: `${item.name.replace(/[^a-z0-9]+/gi, "-").toLowerCase() || "piece"}.jpg`, type: "image/jpeg" }]} label="Share this piece" />}
 
           <dl className="divide-y divide-border rounded-3xl bg-surface px-4">
             <Row k="Type" v={`${titleCase(item.category)} · ${titleCase(item.subcategory)}`} />

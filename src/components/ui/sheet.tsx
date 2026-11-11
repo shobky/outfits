@@ -97,7 +97,7 @@ export function Sheet({
             )}
             <div className={cn("flex items-center justify-between px-5 pb-2", draggable ? "pt-1.5 md:pt-4" : "pt-4")}>
               <Dialog.Title className="text-[17px] font-semibold tracking-tight">{title}</Dialog.Title>
-              <Dialog.Close className="grid size-8 place-items-center rounded-full bg-surface-2 text-muted hover:text-text" aria-label="Close">
+              <Dialog.Close className="grid size-11 place-items-center rounded-full bg-surface-2 text-muted hover:text-text" aria-label="Close">
                 <X className="size-4" />
               </Dialog.Close>
             </div>

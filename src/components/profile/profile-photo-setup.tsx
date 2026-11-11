@@ -266,28 +266,28 @@ export function ProfilePhotoSetup({ profile, onSaved }: { profile: Profile; onSa
       />
 
       {detail && photos[detail] && <Sheet open onOpenChange={(open) => !open && setDetail(null)} title={`${roleLabel(detail)} reference`}><img src={photos[detail]!} alt={`${roleLabel(detail)} reference detail`} className="w-full rounded-2xl object-contain" /></Sheet>}
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-2">
         {roles.map(({ role, label, short, hint, icon: Icon }) => {
           const url = photos[role];
           const isBusy = busy === role;
           return (
             <div key={role} className={cn("group overflow-hidden rounded-2xl border transition-colors", activeRole === role ? "border-accent/70 bg-accent/5" : "border-border bg-surface-2/40")}>
-              <button type="button" disabled={Boolean(busy)} className="block w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent/70" onClick={() => { setActiveRole(role); if (url) setDetail(role); else openPicker(role); }} aria-label={`${label} photo${url ? ", saved" : ", not added"}`}>
-                <div className="relative aspect-[4/5] overflow-hidden bg-tile">
+              <button type="button" disabled={Boolean(busy)} className="flex w-full items-center text-left sm:block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent/70" onClick={() => { setActiveRole(role); if (url) setDetail(role); else openPicker(role); }} aria-label={`${label} photo${url ? ", saved" : ", not added"}`}>
+                <div className="relative aspect-[4/5] w-24 shrink-0 overflow-hidden bg-tile sm:w-auto">
                   {url ? <img src={url} alt={`${label} reference`} className="size-full object-cover outline outline-1 -outline-offset-1 outline-black/10 dark:outline-white/10" /> : <div className="grid size-full place-items-center text-faint"><Icon className="size-7" aria-hidden="true" /></div>}
                   {url && <span className="absolute left-2 top-2 grid size-6 place-items-center rounded-full bg-accent text-accent-fg shadow-soft"><Check className="size-3.5" aria-hidden="true" /></span>}
                   {isBusy && <div className="absolute inset-0 grid place-items-center bg-bg/60"><Loader2 className="size-5 animate-spin" aria-label="Saving photo" /></div>}
                 </div>
                 <div className="space-y-0.5 p-2.5">
                   <p className="text-[13px] font-semibold">{short}</p>
-                  <p className="line-clamp-2 text-[11.5px] leading-snug text-muted">{url ? "Saved to your private profile" : hint}</p>
+                  <p className="text-[12px] leading-relaxed text-muted">{url ? "Saved to your private profile" : hint}</p>
                 </div>
               </button>
               <div className="flex gap-1 border-t border-border p-1.5">
-                <Button type="button" variant="ghost" size="sm" className="h-8 flex-1 px-2 text-[12px]" disabled={Boolean(busy)} onClick={() => openPicker(role)}>
+                <Button type="button" variant="ghost" size="sm" className="min-h-11 flex-1 px-2 text-[12px]" disabled={Boolean(busy)} onClick={() => openPicker(role)}>
                   <Upload className="size-3.5" aria-hidden="true" /> {url ? "Replace" : "Add"}
                 </Button>
-                {url && <Button type="button" variant="ghost" size="icon-sm" className="text-muted hover:text-danger" disabled={Boolean(busy)} onClick={() => void removePhoto(role)} aria-label={`Remove ${label} photo`}><Trash2 className="size-3.5" aria-hidden="true" /></Button>}
+                {url && <Button type="button" variant="ghost" size="icon-sm" className="size-11 text-muted hover:text-danger" disabled={Boolean(busy)} onClick={() => void removePhoto(role)} aria-label={`Remove ${label} photo`}><Trash2 className="size-3.5" aria-hidden="true" /></Button>}
               </div>
             </div>
           );

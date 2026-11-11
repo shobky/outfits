@@ -10,6 +10,21 @@ export default function manifest(): MetadataRoute.Manifest {
     start_url: "/",
     display: "standalone",
     orientation: "portrait",
+    share_target: {
+      action: "/share/target",
+      method: "POST",
+      enctype: "multipart/form-data",
+      params: {
+        title: "title",
+        text: "text",
+        url: "url",
+        files: [{ name: "files", accept: ["image/jpeg", "image/png", "image/webp"] }],
+      },
+    },
+    shortcuts: [
+      { name: "Style a photo", short_name: "Style photo", url: "/share", icons: [{ src: "/icons/icon-192.png?v=neon-1", sizes: "192x192" }] },
+      { name: "Save a product", short_name: "Save product", url: "/share", icons: [{ src: "/icons/icon-192.png?v=neon-1", sizes: "192x192" }] },
+    ],
     background_color: "#0e1014",
     theme_color: "#0e1014",
     icons: [

@@ -2,12 +2,11 @@ import "server-only";
 import { Output, streamText } from "ai";
 import sharp from "sharp";
 import { z } from "zod";
+import { textCost, textRates } from "../ai/pricing";
 import type { AIAccess } from "../ai/provider";
 import { CATEGORIES, COLORS, FITS, MATERIALS, OCCASIONS, PATTERNS, SEASONS, type Category } from "../taxonomy";
 
-const VISION_MODEL = () => process.env.VISION_MODEL || "gpt-5.4-mini";
-/** gpt-5.4-mini per OpenAI's pricing page, 2026-11. Only used to report spend. */
-const USD_PER_M = { input: 0.75, output: 4.5 };
+const VISION_MODEL = () => process.env.VISION_MODEL || "gpt-6-luna";
 
 const schema = z.object({
   groups: z.array(
@@ -33,6 +32,7 @@ const schema = z.object({
       formality: z.number().int().describe("1 lounge … 5 formal"),
       warmth: z.number().int().describe("1 very light … 5 very warm"),
       brand: z.string().nullable().describe("Only if a logo or label is clearly readable"),
+      size: z.string().max(80).nullable().optional().describe("Exact size printed on a clearly readable garment label, including its sizing system if shown. Null if unreadable. Never infer size or centimetres from appearance."),
       description: z.string().describe("One sentence a stylist would use: fabric, cut, details, vibe"),
       facts: z
         .string()
@@ -63,6 +63,7 @@ async function thumbnail(input: Buffer) {
 
 async function callVision<T>(images: { label: string; data: Buffer }[], prompt: string, shape: z.ZodType<T>, ai: Exclude<AIAccess, { source: "none" }>) {
   const modelId = await ai.pickModel(VISION_MODEL(), true);
+  if (ai.source === "key") textRates(modelId);
   let streamError: unknown;
   // Streamed because ChatGPT plan usage refuses anything else.
   const result = streamText({
@@ -92,7 +93,7 @@ async function callVision<T>(images: { label: string; data: Buffer }[], prompt: 
     throw streamError ?? e;
   });
   // A plan's usage isn't priced per token, so it costs nothing to report here.
-  const usd = ai.source === "plan" ? 0 : ((usage.inputTokens ?? 0) * USD_PER_M.input + (usage.outputTokens ?? 0) * USD_PER_M.output) / 1e6;
+  const usd = ai.source === "plan" ? 0 : textCost(modelId, usage);
   return { output: output as T, usd };
 }
 

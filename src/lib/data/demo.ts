@@ -9,6 +9,9 @@ import type { Repo } from "./repo";
 
 /** In-memory store (survives hot reloads via globalThis; resets on server restart). */
 interface Store {
+  tryOnRuns?: import("../types").TryOnRun[];
+  shareIntents?: import("../types").ShareIntent[];
+  pushSubscriptions?: import("../types").PushSubscriptionRecord[];
   items: Item[];
   outfits: Outfit[];
   wishlist: WishlistItem[];
@@ -35,7 +38,7 @@ function load(): Store | null {
   if (!PERSIST || !existsSync(STORE_FILE)) return null;
   try {
     const raw = JSON.parse(readFileSync(STORE_FILE, "utf8")) as Persisted;
-    return { ...raw, invites: raw.invites ?? [], intakeBatches: raw.intakeBatches ?? [], intakeGroups: raw.intakeGroups ?? [], aiSpend: raw.aiSpend ?? [], items: raw.items.map((i) => ({ ...i, images: i.images ?? [] })), chats: new Map(raw.chats) };
+    return { ...raw, invites: raw.invites ?? [], intakeBatches: raw.intakeBatches ?? [], intakeGroups: raw.intakeGroups ?? [], aiSpend: raw.aiSpend ?? [], shareIntents: raw.shareIntents ?? [], pushSubscriptions: raw.pushSubscriptions ?? [], items: raw.items.map((i) => ({ ...i, images: i.images ?? [] })), chats: new Map(raw.chats) };
   } catch (e) {
     console.error("[outfits] could not read .data/store.json — starting fresh", e);
     return null;
@@ -63,6 +66,8 @@ function store(): Store {
     intakeGroups: [],
     aiSpend: [],
     invites: [],
+    shareIntents: [],
+    pushSubscriptions: [],
   };
   return g.__outfitsStore;
 }
@@ -78,6 +83,15 @@ function patchIn<T extends { id: string }>(list: T[], id: string, patch: Partial
 }
 
 const repo: Repo = {
+  async listTryOnRuns() { return store().tryOnRuns ?? []; },
+  async getTryOnRun(id) { return (store().tryOnRuns ?? []).find((run) => run.id === id) ?? null; },
+  async saveTryOnRun(input) {
+    const run = { ...input, id: uid(), user_id: DEMO_USER_ID, created_at: ts() };
+    (store().tryOnRuns ??= []).unshift(run);
+    save();
+    return run;
+  },
+  async deleteTryOnRun(id) { store().tryOnRuns = (store().tryOnRuns ?? []).filter((run) => run.id !== id); save(); },
   async acquireTryOnLease(token) {
     const state = globalThis as typeof globalThis & { __tryOnLease?: { token: string; expires: number } };
     if (state.__tryOnLease && state.__tryOnLease.expires > Date.now()) return false;
@@ -175,6 +189,34 @@ const repo: Repo = {
   async deleteChat(id) {
     store().chats.delete(id);
   },
+  async createShareIntent(input) {
+    const now = Date.now();
+    const intent = { ...input, id: uid(), user_id: DEMO_USER_ID, created_at: new Date(now).toISOString(), expires_at: new Date(now + 24 * 60 * 60 * 1000).toISOString() };
+    (store().shareIntents ??= []).unshift(intent);
+    save();
+    return intent;
+  },
+  async getShareIntent(id) {
+    const intent = (store().shareIntents ?? []).find((entry) => entry.id === id) ?? null;
+    if (!intent || intent.expires_at <= ts()) return null;
+    return intent;
+  },
+  async deleteShareIntent(id) {
+    store().shareIntents = (store().shareIntents ?? []).filter((entry) => entry.id !== id);
+    save();
+  },
+  async listPushSubscriptions() { return store().pushSubscriptions ?? []; },
+  async savePushSubscription(input) {
+    const rows = (store().pushSubscriptions ??= []);
+    const current = rows.find((entry) => entry.endpoint === input.endpoint);
+    if (current) Object.assign(current, { ...input, updated_at: ts() });
+    else rows.unshift({ ...input, id: uid(), user_id: DEMO_USER_ID, created_at: ts(), updated_at: ts() });
+    save();
+  },
+  async deletePushSubscription(endpoint) {
+    store().pushSubscriptions = (store().pushSubscriptions ?? []).filter((entry) => entry.endpoint !== endpoint);
+    save();
+  },
 
   async uploadImage(data, ext) {
     const buf = Buffer.from(await data.arrayBuffer());
@@ -215,10 +257,12 @@ const repo: Repo = {
     return readFileSync(path.join(PRIVATE_UPLOAD_DIR, ...(m[1] ? [m[1], m[2]] : [m[2]])));
   },
   async deleteImage(url) {
+    if (url.startsWith("/api/try-on/file/")) return repo.deletePrivateImage(url);
     const m = /^\/api\/files\/([0-9a-f-]{36}\.(?:webp|png|jpg))$/.exec(url);
     if (m) rmSync(path.join(UPLOAD_DIR, m[1]), { force: true });
   },
   async readImage(url) {
+    if (url.startsWith("/api/try-on/file/")) return repo.readPrivateImage(url);
       const sample = /^\/demo\/([a-z0-9-]+\.svg)$/.exec(url);
       if (sample) return readFileSync(path.join(process.cwd(), "public", "demo", sample[1]));
     const data = /^data:[^;]+;base64,(.+)$/.exec(url);

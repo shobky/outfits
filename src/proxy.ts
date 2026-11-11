@@ -10,6 +10,7 @@ export async function proxy(request: NextRequest) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!url || !key) return NextResponse.next();
+  if (request.nextUrl.pathname === "/offline.html") return NextResponse.next();
 
   // OpenAI requires 127.0.0.1 callbacks. Start local Supabase sessions on
   // that host too, before sign-in, so linking a plan cannot lose the user cookie.
@@ -38,6 +39,12 @@ export async function proxy(request: NextRequest) {
   const { data } = await supabase.auth.getUser();
   const path = request.nextUrl.pathname;
   const isPublic = path.startsWith("/login") || path.startsWith("/auth") || path.startsWith("/privacy");
+  if (!data.user && path === "/share/target") {
+    const login = request.nextUrl.clone();
+    login.pathname = "/login";
+    login.search = "?next=%2Fshare&share=retry";
+    return NextResponse.redirect(login, 303);
+  }
   const isInvite = path.startsWith("/invite") || path.startsWith("/api/invite");
 
   if (!data.user && !isPublic) {

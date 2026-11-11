@@ -15,7 +15,7 @@ const usage = (over: Partial<Usage> = {}): Usage => ({
 const fake = (page: Page, u: Usage) => page.route("**/api/usage", (r) => r.fulfill({ json: u }));
 
 // "Demo stylist" is free and exempt, so these pick a real model. Nothing reaches OpenAI: without a key the server uses the demo.
-const realModel = (page: Page) => page.addInitScript(() => localStorage.setItem("outfits:model", "gpt-5.4-mini"));
+const realModel = (page: Page) => page.addInitScript(() => localStorage.setItem("outfits:model", "gpt-6-luna"));
 
 test.describe("rules", () => {
   test("every day's allowance resets at the next UTC midnight", () => {

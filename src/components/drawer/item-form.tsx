@@ -5,7 +5,7 @@ import { ColorSwatches, Field, MultiChips, Scale } from "./attribute-picker";
 
 export type Draft = Pick<
   ItemInput,
-  "name" | "category" | "subcategory" | "colors" | "pattern" | "material" | "fit" | "seasons" | "occasions" | "formality" | "warmth" | "brand" | "size" | "notes"
+  "name" | "category" | "subcategory" | "colors" | "pattern" | "material" | "fit" | "seasons" | "occasions" | "formality" | "warmth" | "brand" | "size" | "notes" | "garment_dimensions"
 >;
 
 export const emptyDraft: Draft = {
@@ -90,6 +90,13 @@ export function ItemForm({ value, onChange }: { value: Draft; onChange: (d: Draf
           onChange={(e) => set("notes", e.target.value || null)}
         />
       </Field>
+      <section className="space-y-3 rounded-2xl bg-surface-2 p-4">
+        <h3 className="text-sm font-semibold">Actual garment dimensions</h3>
+        <p className="text-xs text-muted">Measure the item laid flat. Width is edge to edge at the chest or waistband; length is shoulder or waistband to hem. These guide try-on without resizing the clothes to your body. Leave unknown values blank.</p>
+        <div className="grid grid-cols-2 gap-3">
+          {(["width_cm", "length_cm"] as const).map((key) => <label key={key} className="space-y-1 text-xs"><span>{key === "width_cm" ? "Flat width (cm)" : "Length / height (cm)"}</span><input aria-label={key === "width_cm" ? "Flat width (cm)" : "Length / height (cm)"} type="number" min="0.1" max="400" step="0.1" className={input} value={value.garment_dimensions?.[key] ?? ""} onChange={(event) => set("garment_dimensions", { width_cm: value.garment_dimensions?.width_cm ?? null, length_cm: value.garment_dimensions?.length_cm ?? null, source: "user", [key]: event.target.value ? Number(event.target.value) : null })} /></label>)}
+        </div>
+      </section>
     </div>
   );
 }

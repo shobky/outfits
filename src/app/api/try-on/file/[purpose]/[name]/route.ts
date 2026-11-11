@@ -9,11 +9,9 @@ export async function GET(_req: Request, ctx: { params: Promise<{ purpose: strin
   const { purpose, name } = await ctx.params;
   if (!(purpose === "reference" || purpose === "result") || !/^[0-9a-f-]{36}\.(?:webp|png|jpg)$/.test(name)) return new Response("Not found", { status: 404 });
   try {
-    if (purpose === "reference") {
-      const profile = await repo.getProfile();
-      const url = `/api/try-on/file/${purpose}/${name}`;
-      if (profile.try_on_photo_url !== url && !profile.try_on_photos?.some((photo) => photo.url === url)) return new Response("Not found", { status: 404 });
-    }
+    // The repo resolves this path inside the authenticated owner's private
+    // storage folder. References also belong to shares and intake batches,
+    // so membership in the body profile is not an authorization boundary.
     const image = await repo.readPrivateImage(`/api/try-on/file/${purpose}/${name}`);
     const ext = name.slice(name.lastIndexOf(".") + 1);
     return new Response(new Uint8Array(image), {

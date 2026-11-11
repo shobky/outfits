@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Empty } from "@/components/ui/empty";
 import { PageHeader } from "@/components/ui/page-header";
 import { ShopTryOnButton } from "@/components/shop/shop-try-on";
+import { ShareButton } from "@/components/share/share-button";
 import type { ShopProduct, ShopProductResult } from "@/lib/shop/types";
 import { api, cn } from "@/lib/utils";
 import { formatPrice, RetailerImage } from "./shop-home";
@@ -107,6 +108,7 @@ export function ShopProductPage() {
             {product.variants.length > 0 && <label className="block text-[12px] font-medium text-muted" htmlFor="product-variant">Size or variant<select id="product-variant" value={selectedVariant} onChange={(event) => { const next = product.variants.find((item) => item.id === event.target.value); setSelectedVariant(event.target.value); setSelectedImage(next?.image_url ?? product.image_url ?? product.images[0]); setSaved(false); }} className="mt-1 h-11 w-full rounded-2xl border border-border bg-bg px-3 text-[14px] text-text outline-none focus-visible:ring-2 focus-visible:ring-accent/60">{product.variants.map((item) => <option key={item.id} value={item.id}>{item.title}{item.available === false ? " · unavailable" : ""}</option>)}</select></label>}
             <p className="text-[13px] text-muted">Availability: <span className="text-text">{availability}</span></p>
             <div className="flex flex-wrap gap-2"><Button size="lg" className="flex-1" onClick={save} disabled={saved || saving}>{saved ? <><Check className="size-4" /> Saved</> : <><Bookmark className="size-4" /> {saving ? "Saving…" : "Add to wishlist"}</>}</Button>{activeImage && <ShopTryOnButton productUrl={selectedUrl} imageUrl={activeImage} disabled={variant?.available === false} />}</div>
+            <ShareButton title={product.title} text={`Have a look at ${product.title}.`} url={selectedUrl} label="Share product" />
             <a href={selectedUrl} target="_blank" rel="noreferrer" className="flex items-center justify-center gap-2 text-[13px] font-medium text-muted hover:text-text"><ExternalLink className="size-3.5" /> Open at {product.retailer}</a>
           </section>
           <section className="space-y-4 lg:col-span-2"><InfoSection title="About this item">{product.description ? <p className="whitespace-pre-line text-[14px] leading-relaxed text-muted">{product.description}</p> : <Unknown />}{(product.material || (!product.variants.length && product.color)) && <div className="grid gap-2 text-[13px] text-muted sm:grid-cols-2">{product.material && <p><span className="font-medium text-text">Material:</span> {product.material}</p>}{!product.variants.length && product.color && <p><span className="font-medium text-text">Colour:</span> {product.color}</p>}</div>}</InfoSection>

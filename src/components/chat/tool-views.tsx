@@ -2,12 +2,13 @@
 import { ArrowLeftRight, Bookmark, CalendarCheck, Check, Cloud, CloudFog, CloudLightning, CloudRain, CloudSnow, CloudSun, Droplets, ExternalLink, Heart, ShoppingBag, Sun, Wind } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import useSWR from "swr";
 import { toast } from "sonner";
 import { mutate } from "swr";
 import { GarmentImage } from "@/components/drawer/item-card";
 import { ItemSheet } from "@/components/drawer/item-sheet";
 import { OutfitBoard } from "@/components/outfit/outfit-board";
-import { TryOnButton } from "@/components/tryon/try-on";
+import { TryOnButton, TryOnSheet } from "@/components/tryon/try-on";
 import { Button } from "@/components/ui/button";
 import type { VisualItem } from "@/lib/ai/tools";
 import type { Occasion } from "@/lib/taxonomy";
@@ -15,16 +16,22 @@ import { track } from "@/lib/events";
 import { markWorn, useItems } from "@/lib/hooks";
 import type { WeatherSnapshot, WishlistItem } from "@/lib/types";
 import { api, cn, titleCase } from "@/lib/utils";
+import { fetcher } from "@/lib/utils";
+import type { TryOnRun } from "@/lib/types";
 
 export type WeatherResult = WeatherSnapshot;
 
-export function TryOnSuggestion({ items, reason, available, needs_photo, error }: { items: VisualItem[]; reason: string; available: boolean; needs_photo: boolean; error?: string }) {
+export function TryOnSuggestion({ items, reason, available, needs_photo, error, chatId, toolCallId }: { items: VisualItem[]; reason: string; available: boolean; needs_photo: boolean; error?: string; chatId?: string; toolCallId?: string }) {
+  const { data } = useSWR<{ runs: TryOnRun[] }>(chatId ? "/api/try-on" : null, fetcher);
+  const saved = data?.runs.find((run) => run.recipe.chat_id === chatId && run.recipe.tool_call_id === toolCallId);
+  const [openSaved, setOpenSaved] = useState(false);
   return (
     <div className="max-w-[420px] space-y-4 rounded-[28px] border border-border bg-surface p-4 shadow-soft">
       <div><p className="text-xs font-medium text-muted">YOUR FITTING ROOM</p><h3 className="mt-1 text-lg font-semibold">Picture yourself in this</h3></div>
       <p className="text-sm text-muted">{error ?? reason}</p>
       <ItemStrip items={items} />
-      {!error && available && <TryOnButton itemIds={items.map((i) => i.id)} />}
+      {!error && available && <TryOnButton itemIds={items.map((i) => i.id)} chatId={chatId} toolCallId={toolCallId} />}
+      {saved && <><button type="button" className="flex w-full items-center gap-3 rounded-2xl bg-surface-2 p-2 text-left" onClick={() => setOpenSaved(true)}><img src={saved.result_url} alt="Saved try-on preview" className="size-14 rounded-xl object-cover" /><span className="text-xs font-medium">Open saved preview<span className="mt-0.5 block font-normal text-muted">Generated {new Date(saved.created_at).toLocaleDateString()}</span></span></button>{openSaved && <TryOnSheet initialRun={saved} itemIds={saved.recipe.item_ids} product={saved.recipe.product} chatId={chatId} toolCallId={toolCallId} onClose={() => setOpenSaved(false)} />}</>}
       {needs_photo && <Link href="/me#try-on-profile" className="inline-flex min-h-11 items-center text-sm font-medium underline underline-offset-4">Set up your photo profile</Link>}
       {!available && !error && <p className="text-xs text-muted">Try-on isn’t enabled for this account yet.</p>}
       <p className="text-xs text-faint">AI visual preview. Your photos and saved details guide the result; exact fit isn’t measured.</p>

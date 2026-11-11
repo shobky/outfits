@@ -3,6 +3,7 @@ import { convertToModelMessages, createUIMessageStreamResponse, isStepCount, str
 import { getRepo, unauthorized } from "@/lib/data";
 import { createMockModel } from "@/lib/ai/mock-model";
 import { DEFAULT_MODEL_ID, MODELS } from "@/lib/ai/models";
+import { textCost, WEB_SEARCH_USD } from "@/lib/ai/pricing";
 import { explainAIError, resolveAI } from "@/lib/ai/provider";
 import { buildInstructions } from "@/lib/ai/system-prompt";
 import { createTools, type DrawerUIMessage } from "@/lib/ai/tools";
@@ -72,10 +73,11 @@ export async function POST(req: Request) {
     messages: await convertToModelMessages(messages),
     tools: allTools,
     stopWhen: isStepCount(8),
-    onEnd: async ({ totalUsage }) => {
+    onStepEnd: async ({ usage, toolCalls }) => {
       if (!onKey || !keyModel.usdPerM) return;
-      // Web search calls ($0.01 each) aren't included: the usage totals don't report them.
-      const usd = ((totalUsage.inputTokens ?? 0) * keyModel.usdPerM.input + (totalUsage.outputTokens ?? 0) * keyModel.usdPerM.output) / 1e6;
+      // Record completed steps even if a later step fails or the client leaves.
+      const searches = new Set(toolCalls.filter((call) => call.toolName === "web_search").map((call) => call.toolCallId)).size;
+      const usd = textCost(modelId, usage) + searches * WEB_SEARCH_USD;
       await record(repo, "chat", usd);
     },
     maxRetries: live?.maxRetries,

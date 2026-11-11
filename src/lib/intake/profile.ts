@@ -2,11 +2,11 @@ import "server-only";
 import { Output, streamText } from "ai";
 import sharp from "sharp";
 import { z } from "zod";
+import { textCost, textRates } from "../ai/pricing";
 import type { AIAccess } from "../ai/provider";
 import type { TryOnInsights, TryOnPhotoKind } from "../types";
 
-const VISION_MODEL = () => process.env.VISION_MODEL || "gpt-5.4-mini";
-const USD_PER_M = { input: 0.75, output: 4.5 };
+const VISION_MODEL = () => process.env.VISION_MODEL || "gpt-6-luna";
 
 const insightSchema = z.object({
   shoulders: z.enum(["narrow", "balanced", "broad"]).nullable(),
@@ -58,6 +58,7 @@ async function thumbnail(data: Buffer) {
 export async function analyzeTryOnProfile(photos: { url: string; kind: TryOnPhotoKind; data: Buffer }[], ai: Exclude<AIAccess, { source: "none" }>) {
   const prepared = await Promise.all(photos.map(async (photo) => ({ photo, data: await thumbnail(photo.data) })));
   const modelId = await ai.pickModel(VISION_MODEL(), true);
+  if (ai.source === "key") textRates(modelId);
   let streamError: unknown;
   const result = streamText({
     abortSignal: AbortSignal.timeout(100_000),
@@ -84,6 +85,6 @@ export async function analyzeTryOnProfile(photos: { url: string; kind: TryOnPhot
   const [output, usage] = await Promise.all([result.output, result.usage]).catch((e) => {
     throw streamError ?? e;
   });
-  const usd = ai.source === "plan" ? 0 : ((usage.inputTokens ?? 0) * USD_PER_M.input + (usage.outputTokens ?? 0) * USD_PER_M.output) / 1e6;
+  const usd = ai.source === "plan" ? 0 : textCost(modelId, usage);
   return { insights: sanitize(output as RawInsights, photos), usd };
 }

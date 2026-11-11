@@ -8,6 +8,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useTheme } from "next-themes";
 import { useEffect, useMemo, useRef, useState } from "react";
 import useSWR, { mutate } from "swr";
+import { toast } from "sonner";
 import { Sheet } from "@/components/ui/sheet";
 import { ChatAllowanceNote, chatIsOut, ChatRestCard, refreshUsage, useUsage } from "@/components/usage/usage";
 import { DEFAULT_MODEL_ID } from "@/lib/ai/models";
@@ -103,6 +104,7 @@ export function StylistView() {
           key={chatId}
           chatId={chatId}
           initial={initial}
+          shareId={params.get("share")}
           model={model}
           aiReady={profile?.ai ?? false}
           onModel={(m) => {
@@ -123,6 +125,7 @@ export function StylistView() {
 function Conversation({
   chatId,
   initial,
+  shareId,
   model,
   onModel,
   aiReady,
@@ -132,6 +135,7 @@ function Conversation({
 }: {
   chatId: string;
   initial: DrawerUIMessage[];
+  shareId: string | null;
   model: string;
   onModel: (m: string) => void;
   aiReady: boolean;
@@ -163,14 +167,50 @@ function Conversation({
   const outOfMessages = chatIsOut(usage, model);
 
   const sent = useRef(false);
+  const sharedSent = useRef(false);
   const router = useRouter();
   useEffect(() => {
-    if (autoPrompt && !sent.current && initial.length === 0) {
+    if (!shareId || sharedSent.current || initial.length !== 0) return;
+    sharedSent.current = true;
+    void (async () => {
+      try {
+        const response = await fetch(`/api/share/${encodeURIComponent(shareId)}`, { cache: "no-store" });
+        if (!response.ok) throw new Error("share_expired");
+        const intent = (await response.json()) as { title: string | null; text: string | null; url: string | null; photos: string[] };
+        const transfer = new DataTransfer();
+        for (const photo of intent.photos.slice(0, 4)) {
+          try {
+            const image = await fetch(photo);
+            if (!image.ok) throw new Error("Shared photo unavailable");
+            const blob = await image.blob();
+            transfer.items.add(new File([blob], `shared-${transfer.files.length + 1}.jpg`, { type: blob.type || "image/jpeg" }));
+          } catch {
+            throw new Error("A shared photo could not be loaded. Please try again.");
+          }
+        }
+        const details = [intent.text, intent.url].filter(Boolean).join("\n");
+        await sendMessage({ text: `Style the shared photo${transfer.files.length === 1 ? "" : "s"} for me.${details ? `\n${details}` : ""}`, files: transfer.files.length ? transfer.files : undefined });
+        // The SDK can report a failed stream through onError without rejecting
+        // sendMessage. Only discard staged photos after history has their data.
+        const saved = await api<{ messages: DrawerUIMessage[] }>(`/api/chats/${chatId}`, "GET");
+        const savedPhotos = saved.messages.flatMap((message) => message.parts).filter((part) => part.type === "file" && part.url.startsWith("data:image/"));
+        if (savedPhotos.length < transfer.files.length) throw new Error("Chat was not saved");
+        await api(`/api/share/${encodeURIComponent(shareId)}`, "DELETE");
+        router.replace(`/stylist?c=${chatId}`);
+      } catch {
+        // Keep the share intent when the chat request fails so the user can retry.
+        toast.error("Your shared photos are still in the share inbox. Please try again.");
+        router.replace(`/share?id=${encodeURIComponent(shareId)}`);
+      }
+    })();
+  }, [chatId, initial.length, router, sendMessage, shareId]);
+  useEffect(() => {
+    if (autoPrompt && !shareId && !sent.current && initial.length === 0) {
       sent.current = true;
       sendMessage({ text: autoPrompt });
       router.replace(`/stylist?c=${chatId}`);
     }
-  }, [autoPrompt, chatId, initial.length, router, sendMessage]);
+  }, [autoPrompt, chatId, initial.length, router, sendMessage, shareId]);
 
   // stick to bottom while streaming, unless the user scrolled up
   const scroller = useRef<HTMLDivElement>(null);
@@ -219,6 +259,7 @@ function Conversation({
               <Message
                 key={m.id}
                 message={m}
+                chatId={chatId}
                 streaming={busy && i === messages.length - 1 && m.role === "assistant"}
                 onAnswer={(toolCallId, answer) => addToolOutput({ tool: "ask_user", toolCallId, output: { answer } })}
               />
