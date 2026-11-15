@@ -31,8 +31,9 @@ export function MultiChips<T extends string>({
             key={o}
             type="button"
             onClick={() => onChange(single ? [o] : on ? value.filter((v) => v !== o) : [...value, o])}
+            aria-pressed={on}
             className={cn(
-              "h-8 rounded-full px-3 text-[12.5px] font-medium transition-colors",
+              "min-h-10 rounded-full px-3 text-[12.5px] font-medium transition-colors",
               on ? "bg-primary text-primary-fg" : "bg-surface-2 text-muted hover:text-text",
             )}
           >

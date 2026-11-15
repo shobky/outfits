@@ -12,7 +12,7 @@ export function Chip({
       type="button"
       aria-pressed={active}
       className={cn(
-        "inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full px-4 text-[13px] font-medium transition-colors active:scale-[0.97]",
+        "inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full px-4 text-[13px] font-medium transition-colors active:scale-[0.97]",
         active ? "bg-primary text-primary-fg" : "bg-surface-2 text-text hover:bg-border-strong/40",
         className,
       )}
@@ -24,5 +24,5 @@ export function Chip({
 }
 
 export function ChipRow({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={cn("no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 md:mx-0 md:px-0", className)}>{children}</div>;
+  return <div className={cn("no-scrollbar flex min-w-0 gap-2 overflow-x-auto", className)}>{children}</div>;
 }

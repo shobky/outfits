@@ -71,7 +71,7 @@ export function OutfitBoard({ items, className, compact, onItemClick }: { items:
               animationDuration: "500ms",
             }}
           >
-            {onItemClick && <button type="button" aria-label={`View ${it.name}`} onClick={() => onItemClick(it.id)} className="absolute inset-0 z-10 rounded-2xl focus-visible:outline-2 focus-visible:outline-offset-2" />}
+            {onItemClick && <button type="button" aria-label={`View ${it.name}`} onClick={() => onItemClick(it.id)} className="absolute inset-0 z-10 rounded-2xl focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent" />}
             {it.image_url && (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={it.image_url} alt={it.name} title={it.name} onError={(e) => (e.currentTarget.style.visibility = "hidden")} className={cn("garment h-full w-full object-contain", compact && "drop-shadow-sm")} draggable={false} />

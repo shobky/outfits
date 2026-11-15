@@ -91,32 +91,15 @@ function ProfileForm({ data, onSaved }: { data: NonNullable<ReturnType<typeof us
     <div className="pb-nav lg:pb-12">
       <PageHeader title="Profile" />
       <div className="mx-auto max-w-xl space-y-6 px-4">
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 gap-2 min-[360px]:grid-cols-2">
           <Status ok={data.supabase || data.local} label={data.supabase ? "Synced (Supabase)" : data.local ? "Saved on this machine" : "Demo data (in memory)"} />
           <Status ok={data.ai} label={data.ai ? "AI connected" : "AI in demo mode"} />
         </div>
 
-        <div id="try-on-profile" className="scroll-mt-20">
-          <ProfilePhotoSetup profile={data.profile} onSaved={onSaved} />
+        <div id="profile-details" className="scroll-mt-20 space-y-2">
+          <h2 className="px-1 text-lg font-semibold tracking-tight">Your details</h2>
+          <p className="px-1 text-[13px] text-muted">Help the stylist choose clothes that feel like you.</p>
         </div>
-        <section className="space-y-3 rounded-[28px] bg-surface p-5">
-          <h2 className="font-semibold tracking-tight">Bring something in</h2>
-          <p className="text-[13px] leading-relaxed text-muted">Share a clothing photo or product link from another app. On iPhone, use the manual picker if the system share target is unavailable.</p>
-          <Link href="/share" className="flex min-h-11 items-center justify-center rounded-full bg-surface-2 px-4 text-sm font-medium">Open share inbox</Link>
-        </section>
-
-        <SavedTryOns />
-        <PushSettings />
-        <UsageCard />
-
-        <ChatGPTPlan onChange={onSaved} />
-        <SampleItems />
-        <MissingPhotos />
-
-        <Field label="Appearance">
-          <Segmented value={(theme as "dark" | "light") ?? "dark"} onChange={setTheme} options={[{ value: "dark", label: "Dark" }, { value: "light", label: "Light" }]} />
-        </Field>
-
         <section className="space-y-5 rounded-[28px] bg-surface p-5">
           <h2 className="font-semibold tracking-tight">About you</h2>
           <p className="-mt-3 text-[13px] text-muted">The stylist uses this for fit, sizing and color advice. You can also just tell it in chat.</p>
@@ -195,6 +178,32 @@ function ProfileForm({ data, onSaved }: { data: NonNullable<ReturnType<typeof us
           {saveBusy ? "Saving…" : "Save profile"}
         </Button>
 
+        <div className="border-t border-border pt-6">
+          <h2 className="px-1 text-lg font-semibold tracking-tight">Try-on & tools</h2>
+          <p className="mt-1 px-1 text-[13px] text-muted">Photos, saved previews, sharing and account tools.</p>
+        </div>
+        <div id="try-on-profile" className="scroll-mt-20">
+          <ProfilePhotoSetup profile={data.profile} onSaved={onSaved} />
+        </div>
+        <section className="space-y-3 rounded-[28px] bg-surface p-5">
+          <h2 className="font-semibold tracking-tight">Bring something in</h2>
+          <p className="text-[13px] leading-relaxed text-muted">Share a clothing photo or product link from another app. On iPhone, use the manual picker if the system share target is unavailable.</p>
+          <Link href="/share" className="flex min-h-11 items-center justify-center rounded-full bg-surface-2 px-4 text-sm font-medium">Open share inbox</Link>
+        </section>
+
+        <SavedTryOns />
+        <PushSettings />
+        <UsageCard />
+
+        <ChatGPTPlan onChange={onSaved} />
+        <Field label="Appearance">
+          <Segmented value={(theme as "dark" | "light") ?? "dark"} onChange={setTheme} options={[{ value: "dark", label: "Dark" }, { value: "light", label: "Light" }]} />
+        </Field>
+
+        <details className="group rounded-[24px] bg-surface p-4">
+          <summary className="cursor-pointer font-semibold marker:text-muted">Drawer maintenance</summary>
+          <div className="mt-4 space-y-3"><SampleItems /><MissingPhotos /></div>
+        </details>
         {data.supabase && (
           <Button
             variant="ghost"
@@ -235,9 +244,9 @@ function ProfileForm({ data, onSaved }: { data: NonNullable<ReturnType<typeof us
 
 function Status({ ok, label }: { ok: boolean; label: string }) {
   return (
-    <div className="flex items-center gap-2 rounded-2xl bg-surface px-3 py-2.5 text-[12.5px] font-medium">
-      {ok ? <CircleCheck className="size-4 text-accent" /> : <CircleDashed className="size-4 text-amber-400" />}
-      {label}
+    <div className="flex min-w-0 items-center gap-2 rounded-2xl bg-surface px-3 py-2.5 text-[12.5px] font-medium leading-snug">
+      {ok ? <CircleCheck className="size-4 shrink-0 text-accent" /> : <CircleDashed className="size-4 shrink-0 text-amber-400" />}
+      <span className="min-w-0">{label}</span>
     </div>
   );
 }

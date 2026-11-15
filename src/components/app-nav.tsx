@@ -22,13 +22,13 @@ export function BottomNav() {
   const path = usePathname();
   if (path.startsWith("/stylist")) return null;
   return (
-    <nav className="pb-safe fixed inset-x-0 bottom-0 z-40 flex justify-center px-4 lg:hidden">
-      <div className="glass flex items-center gap-1 rounded-full border border-border p-1.5 shadow-soft">
+    <nav aria-label="Primary navigation" className="pb-safe fixed inset-x-0 bottom-0 z-40 flex justify-center px-3 lg:hidden">
+      <div className="glass flex w-full max-w-[380px] items-center gap-0.5 rounded-full border border-border p-1.5 shadow-soft">
         {TABS.map(({ href, label, icon: Icon, ...t }) => {
           const active = isActive(path, href);
           if ("primary" in t)
             return (
-              <Link key={href} href={href} aria-label={label} className="mx-1 grid size-12 place-items-center rounded-full bg-primary text-primary-fg shadow-soft active:scale-95">
+              <Link key={href} href={href} aria-label={label} aria-current={active ? "page" : undefined} className="mx-0.5 grid size-12 shrink-0 place-items-center rounded-full bg-primary text-primary-fg shadow-soft active:scale-95">
                 <Icon className="size-5" strokeWidth={2.2} />
               </Link>
             );
@@ -37,9 +37,10 @@ export function BottomNav() {
               key={href}
               href={href}
               className={cn(
-                "flex w-[58px] flex-col items-center gap-0.5 rounded-full py-1.5 text-[10px] font-medium transition-colors",
+                "flex min-h-11 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-full px-0.5 text-[10px] font-medium transition-colors",
                 active ? "text-text" : "text-faint",
               )}
+              aria-current={active ? "page" : undefined}
             >
               <Icon className="size-[21px]" strokeWidth={active ? 2.2 : 1.7} />
               {label}
@@ -85,7 +86,7 @@ export function SideRail() {
 
 export function ProfileLink() {
   return (
-    <Link href="/me" aria-label="Profile" className="grid size-10 place-items-center rounded-full bg-surface text-text shadow-soft lg:hidden">
+    <Link href="/me" aria-label="Profile" className="grid size-11 place-items-center rounded-full bg-surface text-text shadow-soft lg:hidden">
       <UserRound className="size-[18px]" />
     </Link>
   );

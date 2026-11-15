@@ -39,7 +39,7 @@ test("a citation marker split across stream chunks never shows in a reply or its
 /** All of these use the scripted Demo stylist, so they check the components, not answer quality. */
 test("outfit card: weather, swaps change the board, and wearing is logged once", async ({ page }) => {
   await page.goto("/stylist?q=Dinner%20date%20tonight");
-  const card = page.locator("div.rounded-\\[30px\\]").filter({ hasText: "Wore it today" }).first();
+  const card = page.locator("article.rounded-\\[30px\\]").filter({ hasText: "Wore it today" }).first();
   await expect(card).toBeVisible({ timeout: 30_000 });
   await expect(page.getByText(/°C|°/).first()).toBeVisible();
 

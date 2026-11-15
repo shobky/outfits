@@ -39,13 +39,15 @@ export function ItemCard({ item, onOpen }: { item: Item; onOpen?: (item: Item) =
         item.status === "archived" && "opacity-50",
       )}
     >
-      <button onClick={() => onOpen?.(item)} className="absolute inset-0 flex items-center justify-center p-[12%]" aria-label={item.name}>
+      <button type="button" onClick={() => onOpen?.(item)} className="absolute inset-0 flex items-center justify-center p-[12%] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent" aria-label={item.name}>
         <GarmentImage src={item.image_url} alt={item.name} className="h-full w-full transition-transform duration-500 group-hover:scale-[1.04]" />
       </button>
       <button
         onClick={() => patchItem(item.id, { is_favorite: !item.is_favorite })}
         aria-label={item.is_favorite ? "Unfavorite" : "Favorite"}
-        className="absolute right-2.5 top-2.5 grid size-8 place-items-center rounded-full"
+        type="button"
+        aria-pressed={item.is_favorite}
+        className="absolute right-1.5 top-1.5 grid size-11 place-items-center rounded-full focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
       >
         <Heart className={cn("size-[22px] transition-all", item.is_favorite ? "fill-heart text-heart" : "fill-white/70 text-transparent dark:fill-white/25")} />
       </button>
@@ -54,8 +56,8 @@ export function ItemCard({ item, onOpen }: { item: Item; onOpen?: (item: Item) =
           <WashingMachine className="size-3" /> Laundry
         </span>
       )}
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-tile via-tile/80 to-transparent px-3 pb-2.5 pt-6">
-        <p className="truncate text-[12.5px] font-medium">{item.name}</p>
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-tile via-tile/90 to-transparent px-3 pb-2.5 pt-8">
+        <p className="line-clamp-2 text-[12.5px] font-medium leading-snug">{item.name}</p>
       </div>
     </div>
   );

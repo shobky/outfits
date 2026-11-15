@@ -153,24 +153,24 @@ export function OutfitCard({ outfit }: { outfit: OutfitResult }) {
   };
 
   return (
-    <div className="w-full max-w-[420px] overflow-hidden rounded-[30px] border border-border bg-surface p-2 shadow-soft">
+    <article className="w-full max-w-[420px] min-w-0 overflow-hidden rounded-[30px] border border-border bg-surface p-2 shadow-soft">
       <OutfitBoard items={items} onItemClick={openDetail} />
       {detailId && <ItemSheet key={detailId} item={wardrobe?.items.find((i) => i.id === detailId) ?? null} onClose={() => setDetailId(null)} />}
       <div className="space-y-3 px-3 pb-2 pt-4">
         <div>
-          <h3 className="text-[17px] font-semibold tracking-tight">{outfit.name}</h3>
+          <h3 className="text-[17px] font-semibold leading-snug tracking-tight">{outfit.name}</h3>
           {outfit.occasion && <p className="text-xs text-muted">{titleCase(outfit.occasion)}</p>}
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button size="sm" variant={saved ? "surface" : "primary"} onClick={save} disabled={saved}>
+        <div className="grid grid-cols-2 gap-2">
+          <Button size="md" className="min-w-0 px-2 text-[13px]" variant={saved ? "surface" : "primary"} onClick={save} disabled={saved}>
             {saved ? <Check className="size-3.5" /> : <Bookmark className="size-3.5" />}
             {saved ? "Saved" : "Save outfit"}
           </Button>
-          <Button size="sm" variant="surface" onClick={wear} disabled={worn}>
+          <Button size="md" className="min-w-0 px-2 text-[13px]" variant="surface" onClick={wear} disabled={worn}>
             {worn ? <Check className="size-3.5" /> : <CalendarCheck className="size-3.5" />}
             {worn ? "Logged today" : "Wore it today"}
           </Button>
-          <TryOnButton itemIds={items.map((i) => i.id)} />
+          <div className="col-span-2"><TryOnButton itemIds={items.map((i) => i.id)} /></div>
         </div>
         <div className="no-scrollbar -mx-1 flex gap-1.5 overflow-x-auto px-1">
           {items.map((i) => (
@@ -194,7 +194,7 @@ export function OutfitCard({ outfit }: { outfit: OutfitResult }) {
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-[12.5px] font-medium">{x.with.name}</span>
-                  <span className="block truncate text-[11.5px] text-muted">
+                  <span className="block text-[11.5px] leading-snug text-muted">
                     Instead of {x.replace_name.toLowerCase()} · {x.note}
                   </span>
                 </span>
@@ -206,7 +206,7 @@ export function OutfitCard({ outfit }: { outfit: OutfitResult }) {
         {outfit.swap && !swaps.length && <p className="text-[12.5px] text-muted">{outfit.swap}</p>}
         {outfit.problems.length > 0 && <p className="text-xs text-danger">⚠ {outfit.problems.join(" · ")}</p>}
       </div>
-    </div>
+    </article>
   );
 }
 

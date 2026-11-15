@@ -25,14 +25,14 @@ export function OutfitsView() {
         title="Outfits"
         right={<ProfileLink />}
         left={
-          <Link href="/stylist?q=Make%20me%20a%20new%20outfit%20for%20today" className="flex h-8 items-center gap-1.5 rounded-full bg-accent px-3 text-[13px] font-medium text-accent-fg">
+          <Link href="/stylist?q=Make%20me%20a%20new%20outfit%20for%20today" className="flex min-h-10 items-center gap-1.5 rounded-full bg-accent px-3 text-[13px] font-medium text-accent-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">
             <Sparkles className="size-3.5" /> New
           </Link>
         }
       />
       <div className="px-4 md:px-8">
         {isLoading ? (
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
             {[0, 1, 2].map((i) => (
               <div key={i} className="aspect-[4/5] animate-pulse rounded-[28px] bg-surface-2" />
             ))}
@@ -49,7 +49,7 @@ export function OutfitsView() {
             }
           />
         ) : (
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
             {data.outfits.map((o) => {
               const items = o.items.flatMap((oi) => {
                 const it = byId.get(oi.item_id);
@@ -57,21 +57,20 @@ export function OutfitsView() {
               });
               const unavailable = o.items.some((oi) => byId.get(oi.item_id)?.in_laundry);
               return (
-                <div key={o.id} className="group space-y-2">
-                  <div className="relative">
-                    <OutfitBoard items={items} compact onItemClick={setDetailId} />
-                  </div>
-                  <div className="flex items-start gap-1 px-1">
-                    <div className="min-w-0 flex-1">
-                    <p className="truncate text-[14px] font-semibold tracking-tight">{o.name}</p>
-                    <p className="truncate text-[12px] text-muted">
-                      {o.occasion ? titleCase(o.occasion) : "Any time"} · {items.length} pieces
-                      {unavailable && " · something's in the wash"}
-                    </p>
+                <article key={o.id} className="min-w-0 overflow-hidden rounded-[28px] border border-border bg-surface p-2 shadow-soft">
+                  <OutfitBoard items={items} compact onItemClick={setDetailId} />
+                  <div className="space-y-3 px-2 pb-2 pt-3">
+                    <div>
+                      <h2 className="break-words text-[16px] font-semibold leading-snug tracking-tight">{o.name}</h2>
+                      <p className="mt-1 text-[12px] text-muted">
+                        {o.occasion ? titleCase(o.occasion) : "Any time"} · {items.length} pieces
+                      </p>
+                      {unavailable && <p className="mt-1 text-[12px] text-muted">Something is in the wash</p>}
                     </div>
-                    <TryOnButton compact itemIds={items.map((i) => i.id)} />
-                    <button
-                      className="grid size-8 shrink-0 place-items-center rounded-full text-muted hover:bg-surface-2"
+                    <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
+                      <button
+                      type="button"
+                      className="flex min-h-11 min-w-[130px] flex-1 items-center justify-center gap-2 rounded-full bg-primary px-3 text-[13px] font-medium text-primary-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                       aria-label="Wore it today"
                       title="Wore it today"
                       onClick={async () => {
@@ -83,31 +82,37 @@ export function OutfitsView() {
                         }
                       }}
                     >
-                      <CalendarCheck className="size-4" />
-                    </button>
-                    <button
-                      className="grid size-8 shrink-0 place-items-center rounded-full text-muted hover:bg-surface-2"
-                      aria-label="Favorite"
+                      <CalendarCheck className="size-4 shrink-0" aria-hidden="true" /> <span>Wore it today</span>
+                      </button>
+                      <TryOnButton compact itemIds={items.map((i) => i.id)} />
+                      <button
+                      type="button"
+                      className="grid size-11 shrink-0 place-items-center rounded-full bg-surface-2 text-text hover:bg-tile focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                      aria-label={o.is_favorite ? "Remove from favorites" : "Add to favorites"}
+                      aria-pressed={o.is_favorite}
                       onClick={async () => {
                         await api(`/api/outfits/${o.id}`, "PATCH", { is_favorite: !o.is_favorite });
                         mutate("/api/outfits");
                       }}
                     >
                       <Heart className={cn("size-4", o.is_favorite && "fill-heart text-heart")} />
-                    </button>
-                    <button
-                      className="grid size-8 shrink-0 place-items-center rounded-full text-muted hover:bg-surface-2"
+                      </button>
+                      <button
+                      type="button"
+                      className="grid size-11 shrink-0 place-items-center rounded-full text-muted hover:bg-danger/10 hover:text-danger focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                       aria-label="Delete outfit"
                       onClick={async () => {
+                        if (!confirm(`Delete ${o.name}? This cannot be undone.`)) return;
                         await api(`/api/outfits/${o.id}`, "DELETE");
                         mutate("/api/outfits");
                         toast("Outfit deleted");
                       }}
                     >
                       <Trash2 className="size-4" />
-                    </button>
+                      </button>
+                    </div>
                   </div>
-                </div>
+                </article>
               );
             })}
           </div>

@@ -16,7 +16,6 @@ import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { mutate } from "swr";
 import { Button } from "@/components/ui/button";
-import { Field } from "@/components/drawer/attribute-picker";
 import { Sheet } from "@/components/ui/sheet";
 import { useUsage } from "@/components/usage/usage";
 import { preparePhoto } from "@/lib/image/process";
@@ -113,7 +112,7 @@ export function ProfilePhotoSetup({ profile, onSaved }: { profile: Profile; onSa
   const { data: usage } = useUsage();
   const [photos, setPhotos] = useState(() => readPhotos(profile));
   const [busy, setBusy] = useState<ProfilePhotoRole | "analyze" | null>(null);
-  const [activeRole, setActiveRole] = useState<ProfilePhotoRole>("full_body");
+  const [activeRole, setActiveRole] = useState<ProfilePhotoRole | null>(null);
   const [suggestions, setSuggestions] = useState(() => readSuggestions(profile));
   const [pendingInsights, setPendingInsights] = useState<Profile["try_on_insights"]>(() => (profile as ExtendedProfile).try_on_insights ?? null);
   const [selectedSuggestions, setSelectedSuggestions] = useState<Set<number>>(() => new Set(readSuggestions(profile).map((_, i) => i)));
@@ -261,7 +260,7 @@ export function ProfilePhotoSetup({ profile, onSaved }: { profile: Profile; onSa
         onChange={(event) => {
           const file = event.target.files?.[0];
           event.target.value = "";
-          if (file) void savePhoto(file, activeRole);
+          if (file && activeRole) void savePhoto(file, activeRole);
         }}
       />
 
@@ -304,7 +303,7 @@ export function ProfilePhotoSetup({ profile, onSaved }: { profile: Profile; onSa
           {busy === "analyze" ? <Loader2 className="size-3.5 animate-spin" aria-hidden="true" /> : <Sparkles className="size-3.5" aria-hidden="true" />}
           {busy === "analyze" ? "Reading photos…" : "Suggest profile details"}
         </Button>
-        <span className="text-[11.5px] text-faint">You review every suggestion before it is saved.</span>
+        <span className="w-full text-[12px] text-muted sm:w-auto">You review every suggestion before it is saved.</span>
       </div>
       {usage && !usage.features.includes("try_on") && <p className="text-xs text-muted">You can prepare your photos now. AI analysis and previews need try-on enabled for your account.</p>}
 
@@ -332,9 +331,9 @@ export function ProfilePhotoSetup({ profile, onSaved }: { profile: Profile; onSa
         </div>
       )}
 
-      {!suggestions.length && <p className="text-[12px] text-muted">No automatic details are waiting for review.</p>}
-      <Field label="Profile setup checklist">
-        <ul className="grid gap-1.5 text-[12px] text-muted sm:grid-cols-2">
+      <details className="rounded-2xl bg-surface-2/70 p-3">
+        <summary className="cursor-pointer text-[12px] font-medium text-muted">Profile setup checklist · {completeness.done}/{completeness.total} complete</summary>
+        <ul className="mt-3 grid gap-1.5 text-[12px] text-muted sm:grid-cols-2">
           {[
             [Boolean(photos.full_body), "Full-body reference"],
             [Boolean(photos.face), "Face reference"],
@@ -344,7 +343,7 @@ export function ProfilePhotoSetup({ profile, onSaved }: { profile: Profile; onSa
             [Boolean(profile.style_keywords.length), "Style preferences saved"],
           ].map(([done, label]) => <li key={String(label)} className="flex items-center gap-2"><span className={cn("grid size-4 place-items-center rounded-full", done ? "bg-accent text-accent-fg" : "bg-surface-2 text-faint")}>{done ? <Check className="size-2.5" aria-hidden="true" /> : <span className="size-1 rounded-full bg-current" aria-hidden="true" />}</span>{label}</li>)}
         </ul>
-      </Field>
+      </details>
     </section>
   );
 }
