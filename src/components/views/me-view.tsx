@@ -24,8 +24,15 @@ const STYLE_OPTIONS = ["minimal", "smart casual", "classic", "streetwear", "old 
 const list = (s: string) => s.split(",").map((x) => x.trim()).filter(Boolean);
 
 export function MeView() {
-  const { data, mutate } = useProfile();
-  if (!data) return <PageHeader title="Profile" />;
+  const { data, error, mutate } = useProfile();
+  if (!data) return (
+    <div className="pb-nav">
+      <PageHeader title="Profile" />
+      <div className="mx-auto max-w-xl px-4">
+        {error ? <div role="alert" className="space-y-3 rounded-[28px] bg-surface p-5"><p>Couldn’t load your profile.</p><Button variant="surface" onClick={() => void mutate()}>Try again</Button></div> : <p role="status" className="text-muted">Loading your profile…</p>}
+      </div>
+    </div>
+  );
   return <ProfileForm data={data} onSaved={() => mutate()} />;
 }
 
@@ -95,6 +102,11 @@ function ProfileForm({ data, onSaved }: { data: NonNullable<ReturnType<typeof us
           <Status ok={data.supabase || data.local} label={data.supabase ? "Synced (Supabase)" : data.local ? "Saved on this machine" : "Demo data (in memory)"} />
           <Status ok={data.ai} label={data.ai ? "AI connected" : "AI in demo mode"} />
         </div>
+
+        <nav aria-label="Profile sections" className="grid grid-cols-2 gap-2">
+          <a href="#try-on-profile" className="flex min-h-12 items-center justify-center rounded-2xl bg-surface px-3 text-sm font-medium focus-visible:outline-2 focus-visible:outline-accent">Try-on photos</a>
+          <a href="#saved-try-ons" className="flex min-h-12 items-center justify-center rounded-2xl bg-surface px-3 text-sm font-medium focus-visible:outline-2 focus-visible:outline-accent">Saved previews</a>
+        </nav>
 
         <div id="profile-details" className="scroll-mt-20 space-y-2">
           <h2 className="px-1 text-lg font-semibold tracking-tight">Your details</h2>

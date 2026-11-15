@@ -18,16 +18,33 @@ export function ItemSheet({ item, onClose }: { item: Item | null; onClose: () =>
   // parent remounts this sheet per item (key), so state starts fresh
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<Draft | null>(item);
+  const [saveBusy, setSaveBusy] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [busyAction, setBusyAction] = useState<string | null>(null);
   const router = useRouter();
 
   if (!item) return null;
   const removeItem = async () => {
     if (!confirm(`Delete "${item.name}" permanently?`)) return;
-    await deleteItem(item.id);
-    toast("Deleted");
-    onClose();
+    try {
+      await deleteItem(item.id);
+      toast("Deleted");
+      onClose();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Couldn’t delete this piece");
+    }
   };
-  const toggle = (patch: Partial<Item>, msg: string) => patchItem(item.id, patch).then(() => toast(msg));
+  const toggle = async (key: string, patch: Partial<Item>, msg: string) => {
+    setBusyAction(key);
+    try {
+      await patchItem(item.id, patch);
+      toast(msg);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Couldn’t update this piece");
+    } finally {
+      setBusyAction(null);
+    }
+  };
 
   return (
     <Sheet open={!!item} onOpenChange={(o) => !o && onClose()} title={editing ? "Edit piece" : item.name}>
@@ -41,31 +58,44 @@ export function ItemSheet({ item, onClose }: { item: Item | null; onClose: () =>
             </Button>
             <Button
               className="flex-1"
+              disabled={saveBusy}
               onClick={async () => {
-                await patchItem(item.id, draft);
-                setDraft(draft);
-                toast("Saved");
-                setEditing(false);
+                setSaveBusy(true);
+                setSaveError(null);
+                try {
+                  await patchItem(item.id, draft);
+                  setDraft(draft);
+                  toast("Saved");
+                  setEditing(false);
+                } catch (error) {
+                  const message = error instanceof Error ? error.message : "Couldn’t save this piece";
+                  setSaveError(message);
+                  toast.error(message);
+                } finally {
+                  setSaveBusy(false);
+                }
               }}
             >
-              Save
+              {saveBusy ? "Saving…" : "Save"}
             </Button>
           </div>
+          {saveError && <p role="alert" className="text-sm text-danger">{saveError} Your changes are still here. Try again.</p>}
         </div>
       ) : (
         <div className="space-y-5 pb-6">
           <ItemPhotos item={item} onDeleteItem={removeItem} />
 
           <div className="grid grid-cols-4 gap-2">
-            <Action icon={Heart} label="Favorite" on={item.is_favorite} onClick={() => toggle({ is_favorite: !item.is_favorite }, item.is_favorite ? "Removed from favorites" : "Added to favorites")} />
-            <Action icon={WashingMachine} label="Laundry" on={item.in_laundry} onClick={() => toggle({ in_laundry: !item.in_laundry }, item.in_laundry ? "Back in the drawer" : "Marked as in the wash")} />
+            <Action icon={Heart} label="Favorite" on={item.is_favorite} disabled={busyAction !== null} onClick={() => void toggle("favorite", { is_favorite: !item.is_favorite }, item.is_favorite ? "Removed from favorites" : "Added to favorites")} />
+            <Action icon={WashingMachine} label="Laundry" on={item.in_laundry} disabled={busyAction !== null} onClick={() => void toggle("laundry", { in_laundry: !item.in_laundry }, item.in_laundry ? "Back in the drawer" : "Marked as in the wash")} />
             <Action
               icon={item.status === "archived" ? ArchiveRestore : Archive}
               label={item.status === "archived" ? "Restore" : "Archive"}
               on={item.status === "archived"}
-              onClick={() => toggle({ status: item.status === "archived" ? "active" : "archived" }, item.status === "archived" ? "Restored" : "Archived — the stylist won't use it")}
+              disabled={busyAction !== null}
+              onClick={() => void toggle("archive", { status: item.status === "archived" ? "active" : "archived" }, item.status === "archived" ? "Restored" : "Archived — the stylist won't use it")}
             />
-            <Action icon={Pencil} label="Edit" onClick={() => setEditing(true)} />
+            <Action icon={Pencil} label="Edit" disabled={busyAction !== null} onClick={() => setEditing(true)} />
           </div>
 
           <Button variant="accent" size="lg" className="w-full" onClick={() => router.push(`/stylist?q=${encodeURIComponent(`Style my ${item.name.toLowerCase()} (id ${item.id}) for today`)}`)}>
@@ -109,9 +139,9 @@ export function ItemSheet({ item, onClose }: { item: Item | null; onClose: () =>
   );
 }
 
-function Action({ icon: Icon, label, on, onClick }: { icon: typeof Heart; label: string; on?: boolean; onClick: () => void }) {
+function Action({ icon: Icon, label, on, onClick, disabled }: { icon: typeof Heart; label: string; on?: boolean; onClick: () => void; disabled?: boolean }) {
   return (
-    <button onClick={onClick} className={cn("flex flex-col items-center gap-1.5 rounded-2xl py-3 text-[11.5px] font-medium transition-colors", on ? "bg-primary text-primary-fg" : "bg-surface text-text")}>
+    <button type="button" disabled={disabled} onClick={onClick} className={cn("flex flex-col items-center gap-1.5 rounded-2xl py-3 text-[11.5px] font-medium transition-colors disabled:pointer-events-none disabled:opacity-50", on ? "bg-primary text-primary-fg" : "bg-surface text-text")}>
       <Icon className={cn("size-5", on && label === "Favorite" && "fill-heart text-heart")} />
       {label}
     </button>

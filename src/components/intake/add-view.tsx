@@ -68,7 +68,7 @@ export function AddView() {
           {!ordered.length && !uploads.length && (
             <div className="space-y-1.5">
               <h2 className="text-xl font-semibold tracking-tight">Snap it, we do the rest</h2>
-              <p className="mx-auto max-w-sm text-sm text-muted">Add up to {MAX_PHOTOS} photos at once, in any order and from any angle. We work out which photos are the same piece, turn each into a clean studio shot, and fill in the details.</p>
+              <p className="mx-auto max-w-sm text-sm text-muted">Add up to {MAX_PHOTOS} photos at once, in any order and from any angle. We group photos of the same piece and help fill in the details. Your photo is neatly framed, with a studio shot when image generation is available.</p>
             </div>
           )}
           <div className="flex flex-wrap justify-center gap-2">

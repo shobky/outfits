@@ -61,7 +61,7 @@ test("Shop searches, saves, and opens a sourced product", async ({ page }) => {
 
 test("Shop makes unavailable fields explicit", async ({ page }) => {
   await page.route("**/api/wishlist", (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify(wishlist) }));
-  await page.route("**/api/shop/product", (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify({ status: "ok", product: { ...product, image_url: undefined, images: [], measurements: [], reviews: [], rating: undefined } }) }));
+  await page.route("**/api/shop/product", (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify({ status: "ok", product: { ...product, image_url: undefined, images: [], variants: [], measurements: [], reviews: [], rating: undefined } }) }));
   await page.goto(`/shop/product?url=${encodeURIComponent(product.url)}`);
   await expect(page.getByText("Image unavailable")).toBeVisible();
   await expect(page.getByText("No measurements retrieved from this page.")).toBeVisible();

@@ -42,6 +42,8 @@ export function StylistView() {
   const router = useRouter();
   const [chatId, setChatId] = useState<string>(() => params.get("c") ?? crypto.randomUUID());
   const [initial, setInitial] = useState<DrawerUIMessage[] | null>(params.get("c") ? null : []);
+  const [chatLoadError, setChatLoadError] = useState<string | null>(null);
+  const [chatLoadAttempt, setChatLoadAttempt] = useState(0);
   const [desktopSidebar, setDesktopSidebar] = useState(true);
   const [mobileSidebar, setMobileSidebar] = useState(false);
   const { data: chats } = useSWR<{ chats: ChatSession[] }>("/api/chats", fetcher);
@@ -55,23 +57,49 @@ export function StylistView() {
   }, [params]);
 
   useEffect(() => {
-    if (initial === null) {
-      fetch(`/api/chats/${chatId}`)
-        .then((r) => r.json())
-        .then((d: { messages: DrawerUIMessage[] }) => setInitial(d.messages ?? []));
-    }
-  }, [chatId, initial]);
+    if (initial !== null) return;
+    const controller = new AbortController();
+    let cancelled = false;
+
+    fetch(`/api/chats/${chatId}`, { signal: controller.signal })
+      .then(async (response) => {
+        const data = (await response.json().catch(() => null)) as { messages?: DrawerUIMessage[]; error?: string } | null;
+        if (!response.ok) throw new Error(data?.error || response.statusText || "Chat unavailable");
+        if (!Array.isArray(data?.messages)) throw new Error("Chat history was invalid");
+        return data.messages;
+      })
+      .then((messages) => {
+        if (cancelled) return;
+        setInitial(messages);
+      })
+      .catch(() => {
+        if (cancelled || controller.signal.aborted) return;
+        setChatLoadError("Couldn’t load this chat. Check your connection and try again.");
+      });
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [chatId, chatLoadAttempt, initial]);
 
   function open(id: string) {
     setChatId(id);
     setInitial(null);
+    setChatLoadError(null);
+    setChatLoadAttempt((attempt) => attempt + 1);
     setMobileSidebar(false);
   }
   function newChat() {
     setChatId(crypto.randomUUID());
     setInitial([]);
+    setChatLoadError(null);
     setMobileSidebar(false);
     router.replace("/stylist");
+  }
+  function retryChat() {
+    setChatLoadError(null);
+    setChatLoadAttempt((attempt) => attempt + 1);
   }
 
   const sidebar = (
@@ -98,7 +126,7 @@ export function StylistView() {
       </Sheet>
 
       {initial === null ? (
-        <div className="flex-1" />
+        <ChatLoadingState error={chatLoadError} onRetry={retryChat} onToggleSidebar={() => (window.matchMedia("(min-width: 768px)").matches ? setDesktopSidebar((s) => !s) : setMobileSidebar(true))} onNewChat={newChat} />
       ) : (
         <Conversation
           key={chatId}
@@ -225,23 +253,7 @@ function Conversation({
 
   return (
     <div className="flex min-w-0 flex-1 flex-col">
-      <header className="pt-safe shrink-0 md:px-2">
-        <div className="flex h-14 items-center gap-1 px-2 md:h-16 md:px-2">
-        <Link href="/" className="grid size-10 place-items-center rounded-full text-muted hover:bg-surface-2 hover:text-text md:hidden" aria-label="Back to drawer">
-          <ArrowLeft className="size-5" />
-        </Link>
-        <button onClick={onToggleSidebar} className="grid size-10 place-items-center rounded-full text-muted hover:bg-surface-2 hover:text-text" aria-label="Toggle chat history">
-          <PanelLeft className="size-5" />
-        </button>
-        <div className="flex min-w-0 flex-1 items-center justify-center">
-          <StatusPill state={agentState} />
-        </div>
-        <ThemeToggle />
-        <button onClick={onNewChat} className="grid size-10 place-items-center rounded-full text-muted hover:bg-surface-2 hover:text-text" aria-label="New chat">
-          <Plus className="size-5" />
-        </button>
-        </div>
-      </header>
+      <ChatHeader state={agentState} onToggleSidebar={onToggleSidebar} onNewChat={onNewChat} />
 
       <div
         ref={scroller}
@@ -361,6 +373,55 @@ function StatusPill({ state }: { state: AgentState }) {
   );
 }
 
+function ChatHeader({ state, onToggleSidebar, onNewChat }: { state: AgentState; onToggleSidebar: () => void; onNewChat: () => void }) {
+  return (
+    <header className="pt-safe shrink-0 md:px-2">
+      <div className="flex h-14 items-center gap-1 px-2 md:h-16 md:px-2">
+        <Link href="/" className="grid size-10 place-items-center rounded-full text-muted hover:bg-surface-2 hover:text-text md:hidden" aria-label="Back to drawer">
+          <ArrowLeft className="size-5" />
+        </Link>
+        <button type="button" onClick={onToggleSidebar} className="grid size-10 place-items-center rounded-full text-muted hover:bg-surface-2 hover:text-text" aria-label="Toggle chat history">
+          <PanelLeft className="size-5" />
+        </button>
+        <div className="flex min-w-0 flex-1 items-center justify-center">
+          <StatusPill state={state} />
+        </div>
+        <ThemeToggle />
+        <button type="button" onClick={onNewChat} className="grid size-10 place-items-center rounded-full text-muted hover:bg-surface-2 hover:text-text" aria-label="New chat">
+          <Plus className="size-5" />
+        </button>
+      </div>
+    </header>
+  );
+}
+
+function ChatLoadingState({ error, onRetry, onToggleSidebar, onNewChat }: { error: string | null; onRetry: () => void; onToggleSidebar: () => void; onNewChat: () => void }) {
+  return (
+    <div className="flex min-w-0 flex-1 flex-col">
+      <ChatHeader state={{ label: error ? "Chat unavailable" : "Loading chat…", tone: error ? "error" : "busy" }} onToggleSidebar={onToggleSidebar} onNewChat={onNewChat} />
+      <div className="flex min-h-0 flex-1 items-center justify-center px-4">
+        <div className="w-full max-w-sm space-y-4 rounded-[28px] border border-border bg-surface p-6 text-center shadow-soft">
+          <BrandMark size={44} />
+          <div className="space-y-1.5">
+            <h1 className="text-lg font-semibold tracking-tight">{error ? "This chat couldn’t load" : "Loading your chat…"}</h1>
+            <p className="text-sm text-muted">{error ?? "Getting your conversation ready."}</p>
+          </div>
+          {error ? (
+            <div className="flex flex-wrap justify-center gap-2">
+              <button type="button" onClick={onRetry} className="min-h-11 rounded-full bg-primary px-5 text-sm font-medium text-primary-fg">Try again</button>
+              <button type="button" onClick={onNewChat} className="min-h-11 rounded-full bg-surface-2 px-5 text-sm font-medium text-text">Start a new chat</button>
+            </div>
+          ) : (
+            <div className="mx-auto flex w-fit items-center gap-2 rounded-full bg-surface-2 px-3 py-2 text-xs text-muted" role="status" aria-live="polite">
+              <span className="size-2 animate-pulse rounded-full bg-accent" /> Loading
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function EmptyState({ onPick }: { onPick: (t: string) => void }) {
   return (
     <div className="flex min-h-[55dvh] flex-col justify-end gap-6 pt-10">
@@ -396,8 +457,9 @@ function ChatList({
   activeId: string;
   onOpen: (id: string) => void;
   onNew: () => void;
-  onDelete: (id: string) => void;
+  onDelete: (id: string) => Promise<void>;
 }) {
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const today = new Date().toDateString();
   const groups = [
     { label: "Today", items: chats.filter((c) => new Date(c.updated_at).toDateString() === today) },
@@ -427,7 +489,23 @@ function ChatList({
                 <button onClick={() => onOpen(c.id)} className="min-w-0 flex-1 truncate px-3 py-2.5 text-left text-[13.5px]">
                   {c.title}
                 </button>
-                <button onClick={() => onDelete(c.id)} className="mr-1 grid size-7 place-items-center rounded-full text-faint opacity-0 hover:text-danger group-hover:opacity-100" aria-label="Delete chat">
+                <button
+                  type="button"
+                  disabled={deletingId === c.id}
+                  onClick={async () => {
+                    setDeletingId(c.id);
+                    try {
+                      await onDelete(c.id);
+                    } catch {
+                      toast.error("Couldn’t delete this chat. Please try again.");
+                    } finally {
+                      setDeletingId(null);
+                    }
+                  }}
+                  className="mr-1 grid size-11 place-items-center rounded-full text-faint opacity-100 hover:text-danger disabled:opacity-40 md:size-7 md:opacity-0 md:group-hover:opacity-100"
+                  aria-label="Delete chat"
+                  aria-busy={deletingId === c.id}
+                >
                   <Trash2 className="size-3.5" />
                 </button>
               </div>

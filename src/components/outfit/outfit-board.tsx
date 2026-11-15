@@ -1,6 +1,7 @@
 "use client";
 import type { Slot } from "@/lib/taxonomy";
 import { cn } from "@/lib/utils";
+import { GarmentImage } from "@/components/drawer/item-card";
 
 export interface BoardItem {
   id: string;
@@ -45,6 +46,22 @@ function layout(items: BoardItem[]): Map<string, Box> {
 }
 
 export function OutfitBoard({ items, className, compact, onItemClick }: { items: BoardItem[]; className?: string; compact?: boolean; onItemClick?: (id: string) => void }) {
+  const slotCounts = new Map<Slot, number>();
+  for (const item of items) slotCounts.set(item.slot, (slotCounts.get(item.slot) ?? 0) + 1);
+  const needsGrid = [...slotCounts].some(([slot, count]) => count > (slot === "accessory" ? 3 : 1));
+  if (needsGrid) return (
+    <div className={cn("relative aspect-[4/5] w-full overflow-hidden rounded-[28px] bg-tile", className)}>
+      <div className="absolute inset-0 grid auto-rows-[minmax(110px,1fr)] grid-cols-2 gap-2 overflow-y-auto p-3">
+      {items.map((item) => (
+        <div key={item.id} className="relative flex min-h-20 min-w-0 flex-col rounded-2xl bg-surface-2 p-2">
+          <GarmentImage src={item.image_url} alt={item.name} className="min-h-0 w-full flex-1" />
+          <span className="mt-1 break-words text-center text-xs font-medium">{item.name}</span>
+          {onItemClick && <button type="button" aria-label={`View ${item.name}`} onClick={() => onItemClick(item.id)} className="absolute inset-0 rounded-2xl focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent" />}
+        </div>
+      ))}
+      </div>
+    </div>
+  );
   const boxes = layout(items);
   return (
     <div
@@ -72,10 +89,7 @@ export function OutfitBoard({ items, className, compact, onItemClick }: { items:
             }}
           >
             {onItemClick && <button type="button" aria-label={`View ${it.name}`} onClick={() => onItemClick(it.id)} className="absolute inset-0 z-10 rounded-2xl focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent" />}
-            {it.image_url && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={it.image_url} alt={it.name} title={it.name} onError={(e) => (e.currentTarget.style.visibility = "hidden")} className={cn("garment h-full w-full object-contain", compact && "drop-shadow-sm")} draggable={false} />
-            )}
+            <GarmentImage src={it.image_url} alt={it.name} className={cn("h-full w-full", compact && "drop-shadow-sm")} />
           </div>
         );
       })}

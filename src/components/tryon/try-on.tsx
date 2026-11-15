@@ -43,9 +43,11 @@ export function TryOnButton({ itemIds, compact, product, disabled, chatId, toolC
   return (
     <>
       {compact ? (
-        <button type="button" disabled={disabled} aria-label="Try it on" title="Try it on" onClick={() => setOpen(true)} className="grid size-11 shrink-0 place-items-center rounded-full text-muted transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/70">
-          <Wand2 className="size-4" aria-hidden="true" />
-        </button>
+        <div className="min-w-0 flex-1">
+          <Button size="md" variant="surface" disabled={disabled} onClick={() => setOpen(true)} className="min-h-11 min-w-0 w-full px-3 text-[13px]">
+            <Wand2 className="size-3.5 shrink-0" aria-hidden="true" /> Try it on
+          </Button>
+        </div>
       ) : (
         <Button size="sm" variant="surface" disabled={disabled} onClick={() => setOpen(true)}>
           <Wand2 className="size-3.5" aria-hidden="true" /> Try it on

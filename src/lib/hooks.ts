@@ -7,17 +7,29 @@ export function useItems(query = "status=all") {
   return useSWR<{ items: Item[]; mode: "demo" | "supabase" }>(`/api/items?${query}`, fetcher);
 }
 
-/** Optimistic item patch shared by cards, sheets and chat. */
+/** Serialized item patch shared by cards, sheets and chat. */
+const itemPatchQueues = new Map<string, Promise<void>>();
+
 export async function patchItem(id: string, patch: Partial<Item>) {
   const key = (k: unknown) => typeof k === "string" && k.startsWith("/api/items");
-  await globalMutate(
-    key,
-    (data?: { items: Item[]; mode: "demo" | "supabase" }) =>
-      data && { ...data, items: data.items.map((i) => (i.id === id ? { ...i, ...patch } : i)) },
-    { revalidate: false },
-  );
-  await api(`/api/items/${id}`, "PATCH", patch);
-  globalMutate(key);
+  const previous = itemPatchQueues.get(id) ?? Promise.resolve();
+  const operation = previous.catch(() => undefined).then(async () => {
+    // Wait for the server before updating the cache so a failed request cannot leave
+    // an optimistic value visible while the network is unavailable.
+    const updated = await api<Item>(`/api/items/${id}`, "PATCH", patch);
+    await globalMutate(
+      key,
+      (data?: { items: Item[]; mode: "demo" | "supabase" }) =>
+        data && { ...data, items: data.items.map((item) => (item.id === id ? { ...item, ...updated } : item)) },
+      { revalidate: false },
+    );
+    await globalMutate(key).catch(() => undefined);
+  });
+  const tracked = operation.finally(() => {
+    if (itemPatchQueues.get(id) === tracked) itemPatchQueues.delete(id);
+  });
+  itemPatchQueues.set(id, tracked);
+  return tracked;
 }
 
 export async function deleteItem(id: string) {
