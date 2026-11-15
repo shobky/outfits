@@ -27,8 +27,26 @@ export function Composer({
 }) {
   const [text, setText] = useState("");
   const [files, setFiles] = useState<FileList | undefined>();
+  const [previews, setPreviews] = useState<string[]>([]);
   const ta = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const previewUrls = useRef<string[]>([]);
+
+  const replaceFiles = (nextFiles?: FileList) => {
+    previewUrls.current.forEach((src) => URL.revokeObjectURL(src));
+    const validFiles = nextFiles && nextFiles.length > 0 ? nextFiles : undefined;
+    const nextPreviews = validFiles ? [...validFiles].map((file) => URL.createObjectURL(file)) : [];
+    previewUrls.current = nextPreviews;
+    setFiles(validFiles);
+    setPreviews(nextPreviews);
+  };
+
+  useEffect(() => {
+    return () => {
+      previewUrls.current.forEach((src) => URL.revokeObjectURL(src));
+      previewUrls.current = [];
+    };
+  }, []);
 
   useEffect(() => {
     const el = ta.current;
@@ -41,7 +59,7 @@ export function Composer({
     if (busy || (!text.trim() && !files?.length)) return;
     onSend(text.trim(), files);
     setText("");
-    setFiles(undefined);
+    replaceFiles();
     if (fileRef.current) fileRef.current.value = "";
   };
 
@@ -50,7 +68,6 @@ export function Composer({
   // A plan offers what the account can use, not the API's list.
   const options: ModelOption[] = onPlan && chatgpt.models.length ? [...chatgpt.models.map((m) => ({ ...m, provider: "openai" as const, hint: "On your ChatGPT plan" })), MODELS.find((m) => m.provider === "demo")!] : MODELS.filter((m) => developer || !m.developerOnly);
   const current = options.find((m) => m.id === model) ?? options[0];
-  const previews = files ? [...files].map((f) => URL.createObjectURL(f)) : [];
 
   return (
     <div className="rounded-[28px] border border-border-strong bg-surface p-2 shadow-soft transition-colors focus-within:border-faint/60">
@@ -60,7 +77,7 @@ export function Composer({
             <div key={i} className="relative">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={src} alt="" className="size-16 rounded-2xl object-cover" />
-              <button onClick={() => setFiles(undefined)} className="absolute -right-1.5 -top-1.5 grid size-5 place-items-center rounded-full bg-primary text-primary-fg" aria-label="Remove attachment">
+              <button type="button" onClick={() => replaceFiles()} className="absolute -right-1.5 -top-1.5 grid size-5 place-items-center rounded-full bg-primary text-primary-fg" aria-label="Remove attachment">
                 <X className="size-3" />
               </button>
             </div>
@@ -83,8 +100,8 @@ export function Composer({
         className="block max-h-[200px] w-full resize-none bg-transparent px-3 pb-1 pt-2 text-[15.5px] leading-relaxed outline-none placeholder:text-faint"
       />
       <div className="flex items-center gap-1.5 pt-1">
-        <input ref={fileRef} type="file" accept="image/*" multiple hidden onChange={(e) => setFiles(e.target.files ?? undefined)} />
-        <button onClick={() => fileRef.current?.click()} className="grid size-9 place-items-center rounded-full text-muted hover:bg-surface-2 hover:text-text" aria-label="Attach image">
+        <input ref={fileRef} type="file" accept="image/*" multiple hidden onChange={(e) => replaceFiles(e.target.files ?? undefined)} />
+        <button type="button" onClick={() => fileRef.current?.click()} className="grid size-9 place-items-center rounded-full text-muted hover:bg-surface-2 hover:text-text" aria-label="Attach image">
           <Paperclip className="size-[18px]" />
         </button>
 

@@ -1,5 +1,5 @@
 "use client";
-import { Plus, Search, Shirt, SlidersHorizontal, X } from "lucide-react";
+import { Plus, RefreshCw, Search, Shirt, SlidersHorizontal, X } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { ProfileLink } from "@/components/app-nav";
@@ -19,7 +19,7 @@ import { ItemSheet } from "./item-sheet";
 type View = "active" | "laundry" | "archived";
 
 export function DrawerView() {
-  const { data, isLoading } = useItems();
+  const { data, error, isLoading, mutate } = useItems();
   const [cat, setCat] = useState<Category | "all" | "favorite">("all");
   const [q, setQ] = useState("");
   const [searching, setSearching] = useState(false);
@@ -48,6 +48,16 @@ export function DrawerView() {
 
   const open: Item | null = all?.find((i) => i.id === openId) ?? null;
   const activeFilters = color.length + seasons.length + occasions.length + (view !== "active" ? 1 : 0);
+  const hasRefinements = cat !== "all" || Boolean(q) || activeFilters > 0;
+  const resetFilters = () => {
+    setCat("all");
+    setQ("");
+    setSearching(false);
+    setColor([]);
+    setSeasons([]);
+    setOccasions([]);
+    setView("active");
+  };
   const counts = useMemo(() => {
     const c: Record<string, number> = {};
     all?.filter((i) => i.status === "active").forEach((i) => (c[i.category] = (c[i.category] ?? 0) + 1));
@@ -87,6 +97,15 @@ export function DrawerView() {
       />
 
       <div className="space-y-4 px-4 md:px-8">
+        {error && data && <p role="status" className="rounded-2xl bg-surface px-4 py-3 text-sm text-muted">Couldn’t refresh your drawer. Showing the last saved version. <button type="button" className="font-medium text-text underline underline-offset-2" onClick={() => void mutate()}>Try again</button></p>}
+        {error && !data && !isLoading && (
+          <Empty
+            icon={<RefreshCw className="size-6" />}
+            title="Drawer unavailable"
+            body="We couldn’t load your clothes. Check your connection and try again."
+            action={<Button variant="surface" onClick={() => void mutate()}><RefreshCw className="size-4" /> Try again</Button>}
+          />
+        )}
         <div className="flex items-center gap-2">
           <ChipRow className="flex-1">
             <Chip active={cat === "favorite"} onClick={() => setCat("favorite")}>
@@ -114,7 +133,7 @@ export function DrawerView() {
               <div key={i} className="aspect-[4/5] animate-pulse rounded-[26px] bg-surface-2" />
             ))}
           </Grid>
-        ) : items.length ? (
+        ) : error && !data ? null : items.length ? (
           <Grid>
             {items.map((it) => (
               <ItemCard key={it.id} item={it} onOpen={(i) => setOpenId(i.id)} />
@@ -124,9 +143,11 @@ export function DrawerView() {
           <Empty
             icon={<Shirt className="size-6" />}
             title={all?.length ? "Nothing matches" : "Your drawer is empty"}
-            body={all?.length ? "Try removing a filter." : "Snap photos of your clothes — we'll cut them out and tag them for you."}
+            body={all?.length ? "Try clearing your search or filters." : "Snap photos of your clothes — we'll cut them out and tag them for you."}
             action={
-              !all?.length && (
+              all?.length && hasRefinements ? (
+                <Button variant="surface" onClick={resetFilters}>Clear search and filters</Button>
+              ) : !all?.length && (
                 <Link href="/add" className="mt-2 inline-flex h-11 items-center gap-2 rounded-full bg-primary px-5 text-sm font-medium text-primary-fg">
                   <Plus className="size-4" /> Add your first piece
                 </Link>
@@ -151,7 +172,7 @@ export function DrawerView() {
             <MultiChips options={OCCASIONS} value={occasions} onChange={setOccasions} />
           </Field>
           <div className="flex gap-2">
-            <Button variant="surface" className="flex-1" onClick={() => (setColor([]), setSeasons([]), setOccasions([]), setView("active"))}>
+            <Button variant="surface" className="flex-1" onClick={resetFilters}>
               Reset
             </Button>
             <Button className="flex-1" onClick={() => setFiltersOpen(false)}>
