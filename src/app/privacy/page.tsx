@@ -33,7 +33,7 @@ export default function PrivacyPage() {
         </ul>
       </Section>
       <Section title="Your photos">
-        Clothing photos use public web addresses: anyone with the exact address can open them. Keep personal reference photos in the photo profile, where new uploads and try-on previews use separate storage protected by your account login. In local mode, your files stay on this machine and the app has no login. Older reference photos uploaded through the wardrobe storage may still have public addresses; replace them through the photo profile. Only add photos of yourself.
+        Clothing photos are stored privately and are only served to your account after you sign in. Keep personal reference photos in the photo profile, where new uploads and try-on previews use separate storage protected by your account login. In local mode, your files stay on this machine and the app has no login. Only add photos of yourself.
       </Section>
       <Section title="Photo profile and try-on">
         Reference photos help the image model preserve your appearance; we do not create face-recognition templates. Photo analysis offers qualitative suggestions for you to review before saving. It does not measure your body. You can replace or remove references in Profile. Generated try-ons are AI previews, so appearance, garment details and fit can differ from reality.
