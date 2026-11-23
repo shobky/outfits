@@ -11,6 +11,22 @@ function must<T>(res: { data: T | null; error: { message: string } | null }): T 
   return res.data as T;
 }
 
+/**
+ * Maps a stored wardrobe image reference to its storage object path, or null
+ * when it is not a wardrobe reference owned by this user. Accepts the private
+ * proxy path (`/api/wardrobe/<uuid>.<ext>`) and legacy public URLs from before
+ * the bucket went private.
+ */
+function wardrobeObjectPath(url: string, userId: string): string | null {
+  const proxy = /^\/api\/wardrobe\/([0-9a-f-]{36}\.(?:webp|png|jpg))$/.exec(url);
+  if (proxy) return `${userId}/${proxy[1]}`;
+  const marker = "/storage/v1/object/public/wardrobe/";
+  const at = url.indexOf(marker);
+  if (at < 0) return null;
+  const path = decodeURIComponent(url.slice(at + marker.length).split("?")[0]);
+  return path.startsWith(`${userId}/`) ? path : null;
+}
+
 export function supabaseRepo(sb: SupabaseClient, userId: string, email: string | null = null): Repo {
   return {
     mode: "supabase",
@@ -147,7 +163,8 @@ export function supabaseRepo(sb: SupabaseClient, userId: string, email: string |
         upsert: false,
       });
       if (error) throw new Error(error.message);
-      return sb.storage.from("wardrobe").getPublicUrl(path).data.publicUrl;
+      // The bucket is private: hand out an authenticated proxy path, never a public URL.
+      return `/api/wardrobe/${path.slice(userId.length + 1)}`;
     },
     async uploadPrivateImage(data, ext, purpose = "reference") {
       const name = `${crypto.randomUUID()}.${ext}`;
@@ -176,29 +193,28 @@ export function supabaseRepo(sb: SupabaseClient, userId: string, email: string |
     },
     async deleteImage(url) {
       if (url.startsWith("/api/try-on/file/")) return this.deletePrivateImage(url);
-      const marker = "/storage/v1/object/public/wardrobe/";
-      const at = url.indexOf(marker);
-      if (at < 0) return;
-      const path = decodeURIComponent(url.slice(at + marker.length).split("?")[0]);
-      if (!path.startsWith(`${userId}/`)) return;
+      const path = wardrobeObjectPath(url, userId);
+      if (!path) return;
       const { error } = await sb.storage.from("wardrobe").remove([path]);
       if (error) throw new Error(error.message);
     },
     async readImage(url) {
       if (url.startsWith("/api/try-on/file/")) return this.readPrivateImage(url);
-      const marker = "/storage/v1/object/public/wardrobe/";
-      const at = url.indexOf(marker);
-      const path = at < 0 ? "" : decodeURIComponent(url.slice(at + marker.length).split("?")[0]);
-      if (!path.startsWith(`${userId}/`)) throw new Error("That photo isn't yours");
+      const path = wardrobeObjectPath(url, userId);
+      if (!path) throw new Error("That photo isn't yours");
       const { data, error } = await sb.storage.from("wardrobe").download(path);
       if (error) throw new Error(error.message);
       return Buffer.from(await data.arrayBuffer());
+    },
+    async ownsImage(url) {
+      if (url.startsWith("/api/try-on/file/")) return false; // served by the try-on route, not here
+      return wardrobeObjectPath(url, userId) !== null;
     },
     async createUploadTarget(ext) {
       const path = `${userId}/${crypto.randomUUID()}.${ext}`;
       const { data, error } = await sb.storage.from("wardrobe").createSignedUploadUrl(path);
       if (error) throw new Error(error.message);
-      return { method: "PUT", url: data.signedUrl, publicUrl: sb.storage.from("wardrobe").getPublicUrl(path).data.publicUrl };
+      return { method: "PUT", url: data.signedUrl, publicUrl: `/api/wardrobe/${path.slice(userId.length + 1)}` };
     },
 
     async aiSpendToday() {
@@ -219,6 +235,26 @@ export function supabaseRepo(sb: SupabaseClient, userId: string, email: string |
     },
     async adminSetFeatures(person, features) {
       must(await sb.rpc("admin_set_features", { person, wanted: features }));
+    },
+    async listMyInvites() { return must(await sb.rpc("my_invites")) as import("../types").Invite[]; },
+    async redeemInvite(code) {
+      const { data, error } = await sb.rpc("redeem_invite", { invite: code });
+      if (error) throw new Error(error.message);
+      return data === true;
+    },
+    async rateLimitHit(scope, max, windowSeconds) {
+      try {
+        // The user id is added by the RPC from the session (auth.uid()), never from here.
+        const { data, error } = await sb.rpc("rate_limit_hit", { p_scope: scope, p_max: max, p_window_seconds: windowSeconds });
+        if (error) {
+          console.error("[rate-limit]", error.message);
+          return true;
+        }
+        return data === true;
+      } catch (e) {
+        console.error("[rate-limit]", e);
+        return true;
+      }
     },
     async adminCreateInvite(code, note, maxUses) {
       must(await sb.rpc("admin_create_invite", { new_code: code, new_note: note, uses: maxUses }));

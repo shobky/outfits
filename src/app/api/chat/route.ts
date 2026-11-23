@@ -9,6 +9,7 @@ import { buildInstructions } from "@/lib/ai/system-prompt";
 import { createTools, type DrawerUIMessage } from "@/lib/ai/tools";
 import { record } from "@/lib/intake/budget";
 import { limitsFromEnv } from "@/lib/intake/limits";
+import { rateLimit, rateLimited } from "@/lib/rate-limit";
 import { chatDailyLimit, isDeveloper, limitsAreOff } from "@/lib/usage";
 import { canChat } from "@/lib/usage-rules";
 
@@ -17,6 +18,7 @@ export const maxDuration = 60;
 export async function POST(req: Request) {
   const repo = await getRepo();
   if (!repo) return unauthorized();
+  if (!(await limitsAreOff(repo)) && !(await rateLimit(repo, "chat", 30, 600))) return rateLimited();
 
   const body = (await req.json()) as { id: string; messages: DrawerUIMessage[]; model?: string; timeZone?: string };
   const { id, messages } = body;

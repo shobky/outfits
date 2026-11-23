@@ -3,7 +3,7 @@ import { CircleCheck, CircleDashed, LogOut } from "lucide-react";
 import { useTheme } from "next-themes";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ChatGPTButton, ChatGPTMark, ManageUsage, useChatGPT } from "@/components/chatgpt";
 import { GarmentImage } from "@/components/drawer/item-card";
 import { ProfilePhotoSetup } from "@/components/profile/profile-photo-setup";
@@ -207,6 +207,8 @@ function ProfileForm({ data, onSaved }: { data: NonNullable<ReturnType<typeof us
         <PushSettings />
         <UsageCard />
 
+        {data.supabase && <InviteFriends />}
+
         <ChatGPTPlan onChange={onSaved} />
         <Field label="Appearance">
           <Segmented value={(theme as "dark" | "light") ?? "dark"} onChange={setTheme} options={[{ value: "dark", label: "Dark" }, { value: "light", label: "Light" }]} />
@@ -355,6 +357,53 @@ function MissingPhotos() {
         </>
       )}
     </div>
+  );
+}
+
+type MemberInvite = { code: string; used_count: number; max_uses: number };
+
+/** Every member gets up to 5 single-use codes; the server tops the list up lazily. */
+function InviteFriends() {
+  const [invites, setInvites] = useState<MemberInvite[] | null>(null);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    api<{ invites: MemberInvite[] }>("/api/invite", "GET")
+      .then((d) => setInvites(d.invites))
+      .catch(() => setFailed(true));
+  }, []);
+  if (failed || !invites || !invites.length) return null;
+  const used = invites.filter((i) => i.used_count >= i.max_uses).length;
+  return (
+    <section className="space-y-3 rounded-[28px] bg-surface p-5">
+      <h2 className="font-semibold tracking-tight">Invite friends</h2>
+      <p className="text-[13px] leading-relaxed text-muted">
+        {invites.length - used} of {invites.length} invites left. Each code lets one friend in: they sign up, then enter it on the invite screen.
+      </p>
+      <ul className="divide-y divide-border">
+        {invites.map((i) => {
+          const taken = i.used_count >= i.max_uses;
+          return (
+            <li key={i.code} className="flex items-center justify-between gap-3 py-2.5">
+              <code className={`text-[15px] font-semibold tracking-[0.2em] ${taken ? "text-faint line-through" : ""}`}>{i.code}</code>
+              {taken ? (
+                <span className="text-[12.5px] text-faint">Used</span>
+              ) : (
+                <Button
+                  size="sm"
+                  variant="surface"
+                  onClick={async () => {
+                    await navigator.clipboard.writeText(i.code).catch(() => {});
+                    toast.success("Code copied");
+                  }}
+                >
+                  Copy
+                </Button>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }
 

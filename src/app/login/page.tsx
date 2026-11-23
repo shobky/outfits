@@ -31,6 +31,9 @@ const RESEND_COOLDOWN_SECONDS = 60;
 
 function explainEmailError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error ?? "");
+  if (/failed to fetch|networkerror|load failed|fetch failed/i.test(message)) {
+    return "We can't reach the sign-in service right now. Please try again in a little while.";
+  }
   if (/rate|too many|429|60 seconds|once every/i.test(message)) {
     return "Too many sign-in emails were requested. Wait a moment, then use the newest email.";
   }

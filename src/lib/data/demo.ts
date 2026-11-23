@@ -261,6 +261,7 @@ const repo: Repo = {
     const m = /^\/api\/files\/([0-9a-f-]{36}\.(?:webp|png|jpg))$/.exec(url);
     if (m) rmSync(path.join(UPLOAD_DIR, m[1]), { force: true });
   },
+  async ownsImage(url) { return url.startsWith("/api/wardrobe/"); },
   async readImage(url) {
     if (url.startsWith("/api/try-on/file/")) return repo.readPrivateImage(url);
       const sample = /^\/demo\/([a-z0-9-]+\.svg)$/.exec(url);
@@ -302,6 +303,9 @@ const repo: Repo = {
   async adminSetFeatures(_person, features) {
     store().profile = { ...store().profile, dev_features: features };
   },
+  async listMyInvites() { return []; },
+  async redeemInvite() { return false; },
+  async rateLimitHit() { return true; },
   async adminCreateInvite(code, note, maxUses) {
     const upper = code.trim().toUpperCase();
     if (store().invites.some((i) => i.code === upper)) throw new Error("That code already exists");
