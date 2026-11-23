@@ -35,7 +35,7 @@ export async function POST(req: Request) { return withTryOnLease(() => post(req)
 async function post(req: Request) {
   const repo = await getRepo();
   if (!repo) return unauthorized();
-  if (!(await limitsAreOff(repo)) && !(await rateLimit(`tryon:${repo.userId}`, 10, 600))) return rateLimited();
+  if (!(await limitsAreOff(repo)) && !(await rateLimit("tryon", 10, 600))) return rateLimited();
   if (!(await hasFeature(repo, "try_on"))) return Response.json({ error: "Try-on isn't switched on for your account" }, { status: 403 });
   // Image generation is an explicit, feature-gated action. Its API key is
   // independent of the connection selected for text chat (including a plan).

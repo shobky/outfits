@@ -19,7 +19,7 @@ export async function GET() {
 export async function POST(req: Request) {
   const repo = await getRepo();
   if (!repo) return unauthorized();
-  if (!(await limitsAreOff(repo)) && !(await rateLimit(`intake:${repo.userId}`, 10, 600))) return rateLimited();
+  if (!(await limitsAreOff(repo)) && !(await rateLimit("intake", 10, 600))) return rateLimited();
   const { photos, kind } = (await req.json()) as { photos?: string[]; kind?: "closet" | "worn" };
   if (!photos?.length) return Response.json({ error: "No photos were sent" }, { status: 400 });
   if (photos.length > MAX_PHOTOS) return Response.json({ error: `Up to ${MAX_PHOTOS} photos at a time` }, { status: 400 });

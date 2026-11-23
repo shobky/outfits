@@ -10,7 +10,7 @@ export async function POST(req: Request) {
   const repo = await getRepo();
   if (!repo) return unauthorized();
   const form = await req.formData().catch(() => null);
-  if (!(await limitsAreOff(repo)) && !(await rateLimit(`upload:${repo.userId}`, 20, 600))) return rateLimited();
+  if (!(await limitsAreOff(repo)) && !(await rateLimit("upload", 20, 600))) return rateLimited();
   const file = form?.get("file");
   if (!(file instanceof Blob)) return Response.json({ error: "No file was received" }, { status: 400 });
   if (file.size > MAX_BYTES) return Response.json({ error: "That image is over the 4.4MB limit" }, { status: 413 });

@@ -17,7 +17,10 @@ declare
   i int;
 begin
   if me is null then return; end if;
-  if not exists (select 1 from public.beta_members where user_id = me) then return; end if;
+  -- Lock the membership row so concurrent first calls can't each mint 5 codes:
+  -- the second caller waits, then sees the committed allocation.
+  perform 1 from public.beta_members where user_id = me for update;
+  if not found then return; end if;
   select count(*) into have from public.invites where created_by = me;
   while have < 5 loop
     new_code := '';
