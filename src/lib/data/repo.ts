@@ -72,6 +72,8 @@ export interface Repo {
   tryOnsToday(): Promise<number>;
   adminOverview(): Promise<Omit<AdminOverview, "flags">>;
   adminSetFeatures(userId: string, features: string[]): Promise<void>;
+  /** The signed-in member's own invite codes, created lazily (up to 5). Members only. */
+  listMyInvites(): Promise<import("../types").Invite[]>;
   adminCreateInvite(code: string, note: string | null, maxUses: number): Promise<void>;
   adminRevokeInvite(code: string): Promise<void>;
   /** This user's counted stylist messages since midnight UTC. */

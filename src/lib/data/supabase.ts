@@ -232,6 +232,7 @@ export function supabaseRepo(sb: SupabaseClient, userId: string, email: string |
     async adminSetFeatures(person, features) {
       must(await sb.rpc("admin_set_features", { person, wanted: features }));
     },
+    async listMyInvites() { return must(await sb.rpc("my_invites")) as import("../types").Invite[]; },
     async adminCreateInvite(code, note, maxUses) {
       must(await sb.rpc("admin_create_invite", { new_code: code, new_note: note, uses: maxUses }));
     },

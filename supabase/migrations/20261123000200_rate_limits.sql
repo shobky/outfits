@@ -60,3 +60,23 @@ $$;
 
 revoke all on function public.rate_limits_cleanup() from public;
 grant execute on function public.rate_limits_cleanup() to service_role;
+
+-- Brute-force throttle for invite redemption, enforced inside the RPC itself so
+-- direct PostgREST callers can't skip the allowance the Next route applies.
+create or replace function public.redeem_invite(invite text) returns boolean
+language plpgsql security definer set search_path = '' as $$
+declare
+  me uuid := auth.uid();
+  row_ public.invites;
+begin
+  if me is null then return false; end if;
+  if not public.rate_limit_hit('redeem', 10, 600) then return false; end if;
+  if exists (select 1 from public.beta_members where user_id = me) then return true; end if;
+  select * into row_ from public.invites where code = upper(trim(invite)) for update;
+  if not found or row_.used_count >= row_.max_uses then return false; end if;
+  update public.invites set used_count = used_count + 1 where code = row_.code;
+  insert into public.beta_members (user_id, invite_code) values (me, row_.code);
+  return true;
+end $$;
+revoke execute on function public.redeem_invite(text) from public, anon;
+grant execute on function public.redeem_invite(text) to authenticated;

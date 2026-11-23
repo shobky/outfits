@@ -89,6 +89,16 @@ export interface WishlistItem {
   created_at: string;
 }
 
+/** A single-use invite code. Members see only their own (created_by). */
+export interface Invite {
+  code: string;
+  note: string | null;
+  max_uses: number;
+  used_count: number;
+  created_at: string;
+  created_by?: string | null;
+}
+
 export interface Profile {
   id: string;
   display_name: string | null;

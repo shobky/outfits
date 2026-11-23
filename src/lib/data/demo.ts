@@ -302,6 +302,7 @@ const repo: Repo = {
   async adminSetFeatures(_person, features) {
     store().profile = { ...store().profile, dev_features: features };
   },
+  async listMyInvites() { return []; },
   async adminCreateInvite(code, note, maxUses) {
     const upper = code.trim().toUpperCase();
     if (store().invites.some((i) => i.code === upper)) throw new Error("That code already exists");
