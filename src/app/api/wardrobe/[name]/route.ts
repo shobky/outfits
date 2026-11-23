@@ -14,9 +14,12 @@ export async function GET(req: Request, ctx: RouteContext<"/api/wardrobe/[name]"
   if (!repo) return new Response("Unauthorized", { status: 401 });
   const { name } = await ctx.params;
   if (!/^[0-9a-f-]{36}\.(webp|png|jpg)$/.test(name)) return new Response("Not found", { status: 404 });
-  // Content is uuid-addressed and immutable, so revalidations answer 304
-  // without a storage download; no-cache means the browser always asks first.
+  // Ownership is verified before any 304: a revalidation must not confirm a
+  // photo this account doesn't own. Content is uuid-addressed and immutable,
+  // so owned revalidations answer 304 without a storage download; no-cache
+  // means the browser always asks first.
   const etag = `"${name}"`;
+  if (!(await repo.ownsImage(`/api/wardrobe/${name}`))) return new Response("Not found", { status: 404 });
   if (req.headers.get("if-none-match") === etag) return new Response(null, { status: 304 });
   try {
     const image = await repo.readImage(`/api/wardrobe/${name}`);

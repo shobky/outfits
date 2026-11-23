@@ -18,7 +18,7 @@ export const maxDuration = 60;
 export async function POST(req: Request) {
   const repo = await getRepo();
   if (!repo) return unauthorized();
-  if (!(await limitsAreOff(repo)) && !(await rateLimit("chat", 30, 600))) return rateLimited();
+  if (!(await limitsAreOff(repo)) && !(await rateLimit(repo, "chat", 30, 600))) return rateLimited();
 
   const body = (await req.json()) as { id: string; messages: DrawerUIMessage[]; model?: string; timeZone?: string };
   const { id, messages } = body;

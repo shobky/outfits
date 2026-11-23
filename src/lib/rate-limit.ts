@@ -1,5 +1,5 @@
 import "server-only";
-import { createClient } from "@/lib/supabase/server";
+import type { Repo } from "@/lib/data";
 
 /**
  * Fixed-window burst control backed by the rate_limits table (serverless-safe:
@@ -7,20 +7,8 @@ import { createClient } from "@/lib/supabase/server";
  * outage in this guard never takes the app down with it; the daily AI caps
  * still fail closed on their own.
  */
-export async function rateLimit(scope: string, max: number, windowSeconds: number): Promise<boolean> {
-  try {
-    const sb = await createClient();
-    // The user id is added by the RPC from the session (auth.uid()), never from here.
-    const { data, error } = await sb.rpc("rate_limit_hit", { p_scope: scope, p_max: max, p_window_seconds: windowSeconds });
-    if (error) {
-      console.error("[rate-limit]", error.message);
-      return true;
-    }
-    return data === true;
-  } catch (e) {
-    console.error("[rate-limit]", e);
-    return true;
-  }
+export async function rateLimit(repo: Repo, scope: string, max: number, windowSeconds: number): Promise<boolean> {
+  return repo.rateLimitHit(scope, max, windowSeconds);
 }
 
 export const rateLimited = () =>

@@ -206,6 +206,10 @@ export function supabaseRepo(sb: SupabaseClient, userId: string, email: string |
       if (error) throw new Error(error.message);
       return Buffer.from(await data.arrayBuffer());
     },
+    async ownsImage(url) {
+      if (url.startsWith("/api/try-on/file/")) return false; // served by the try-on route, not here
+      return wardrobeObjectPath(url, userId) !== null;
+    },
     async createUploadTarget(ext) {
       const path = `${userId}/${crypto.randomUUID()}.${ext}`;
       const { data, error } = await sb.storage.from("wardrobe").createSignedUploadUrl(path);
@@ -233,6 +237,25 @@ export function supabaseRepo(sb: SupabaseClient, userId: string, email: string |
       must(await sb.rpc("admin_set_features", { person, wanted: features }));
     },
     async listMyInvites() { return must(await sb.rpc("my_invites")) as import("../types").Invite[]; },
+    async redeemInvite(code) {
+      const { data, error } = await sb.rpc("redeem_invite", { invite: code });
+      if (error) throw new Error(error.message);
+      return data === true;
+    },
+    async rateLimitHit(scope, max, windowSeconds) {
+      try {
+        // The user id is added by the RPC from the session (auth.uid()), never from here.
+        const { data, error } = await sb.rpc("rate_limit_hit", { p_scope: scope, p_max: max, p_window_seconds: windowSeconds });
+        if (error) {
+          console.error("[rate-limit]", error.message);
+          return true;
+        }
+        return data === true;
+      } catch (e) {
+        console.error("[rate-limit]", e);
+        return true;
+      }
+    },
     async adminCreateInvite(code, note, maxUses) {
       must(await sb.rpc("admin_create_invite", { new_code: code, new_note: note, uses: maxUses }));
     },

@@ -61,6 +61,8 @@ export interface Repo {
   deleteImage(url: string): Promise<void>;
   /** Reads one of this user's stored images. Refuses anything else, so a URL from a client can't reach other hosts. */
   readImage(url: string): Promise<Buffer>;
+  /** Whether this user owns the stored image at url, without downloading it. */
+  ownsImage(url: string): Promise<boolean>;
   /** Where the browser should send a photo: straight to storage when possible. */
   createUploadTarget(ext: "jpg"): Promise<{ method: "PUT" | "FORM"; url: string; publicUrl: string | null }>;
 
@@ -74,6 +76,10 @@ export interface Repo {
   adminSetFeatures(userId: string, features: string[]): Promise<void>;
   /** The signed-in member's own invite codes, created lazily (up to 5). Members only. */
   listMyInvites(): Promise<import("../types").Invite[]>;
+  /** Redeems an invite code for the signed-in user. False when the code is invalid or used. */
+  redeemInvite(code: string): Promise<boolean>;
+  /** Fixed-window burst counter; true while the caller is under the limit. Fails open so the guard never takes the app down. */
+  rateLimitHit(scope: string, max: number, windowSeconds: number): Promise<boolean>;
   adminCreateInvite(code: string, note: string | null, maxUses: number): Promise<void>;
   adminRevokeInvite(code: string): Promise<void>;
   /** This user's counted stylist messages since midnight UTC. */

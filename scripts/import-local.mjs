@@ -66,7 +66,8 @@ async function moveImage(url) {
   const target = `${userId}/${m[1]}`;
   const { error } = await sb.storage.from("wardrobe").upload(target, readFileSync(file), { contentType: TYPES[m[2]], upsert: true });
   if (error) throw new Error(`Upload of ${m[1]} failed: ${error.message}`);
-  return sb.storage.from("wardrobe").getPublicUrl(target).data.publicUrl;
+  // The wardrobe bucket is private; photos load through the authenticated proxy.
+  return `/api/wardrobe/${m[1]}`;
 }
 
 async function must(label, query) {
