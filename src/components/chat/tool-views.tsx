@@ -372,3 +372,70 @@ export function QuickReplies({
     </div>
   );
 }
+
+export type PackingListResult = {
+  destination: string;
+  start_date: string;
+  end_date: string;
+  days: number;
+  note: string | null;
+  weather: WeatherResult | null;
+  problems: string[];
+  items: VisualItem[];
+};
+
+function fmtDay(date: string) {
+  return new Date(`${date}T12:00:00`).toLocaleDateString(undefined, { day: "numeric", month: "short" });
+}
+
+export function PackingListCard({ list }: { list: PackingListResult }) {
+  const [packed, setPacked] = useState<string[]>([]);
+  const toggle = (id: string) => setPacked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
+  const all = packed.length === list.items.length && list.items.length > 0;
+  return (
+    <div className="w-full max-w-[420px] space-y-3 rounded-[28px] border border-border bg-surface p-4 shadow-soft">
+      <div>
+        <p className="text-xs font-medium text-muted">PACKING LIST</p>
+        <h3 className="mt-1 text-lg font-semibold tracking-tight">
+          {list.destination} · {list.days} {list.days === 1 ? "day" : "days"}
+        </h3>
+        <p className="text-[13px] text-muted">
+          {fmtDay(list.start_date)} – {fmtDay(list.end_date)}
+        </p>
+      </div>
+      {list.weather && (
+        <p className="flex items-center gap-2 text-[13px] text-muted">
+          <WeatherIcon condition={list.weather.condition} />
+          <span>
+            {list.weather.condition}, {list.weather.temp_min_c}°–{list.weather.temp_max_c}° on arrival
+            {list.weather.rain_chance != null && list.weather.rain_chance >= 30 ? ` · ${list.weather.rain_chance}% rain` : ""}
+          </span>
+        </p>
+      )}
+      {list.note && <p className="text-[13px] text-muted">{list.note}</p>}
+      {list.problems.length > 0 && <p className="text-[13px] text-danger">{list.problems.join(" · ")}</p>}
+      <ul className="divide-y divide-border">
+        {list.items.map((item) => {
+          const on = packed.includes(item.id);
+          return (
+            <li key={item.id}>
+              <button type="button" onClick={() => toggle(item.id)} aria-pressed={on} className="flex w-full items-center gap-3 py-2 text-left">
+                <span className={cn("grid size-6 shrink-0 place-items-center rounded-full border", on ? "border-primary bg-primary text-primary-fg" : "border-border-strong text-transparent")}>
+                  <Check className="size-3.5" />
+                </span>
+                <span className={cn("size-10 shrink-0 overflow-hidden rounded-lg bg-tile", on && "opacity-50")}>
+                  <GarmentImage src={item.image_url} alt={item.name} compact className="size-full object-contain" />
+                </span>
+                <span className={cn("min-w-0 flex-1 truncate text-[14px] font-medium", on && "text-muted line-through")}>{item.name}</span>
+                <span className="shrink-0 text-[11px] uppercase tracking-wide text-faint">{item.slot}</span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+      <p className="text-[13px] font-medium text-muted">
+        {all ? "All packed — have a good trip!" : `${packed.length} of ${list.items.length} packed`}
+      </p>
+    </div>
+  );
+}

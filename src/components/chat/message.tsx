@@ -8,7 +8,7 @@ import { stripCitationMarkers } from "@/lib/ai/citations";
 import type { DrawerUIMessage } from "@/lib/ai/tools";
 import { cn } from "@/lib/utils";
 import { AgentSteps, PROCESS_TOOLS, type StepPart } from "./agent-steps";
-import { ItemStrip, OutfitCard, ProductCheckCard, QuickReplies, SuggestionCards, TryOnSuggestion, WeatherCard, type OutfitResult, type ProductCheckResult, type WeatherResult } from "./tool-views";
+import { ItemStrip, OutfitCard, PackingListCard, ProductCheckCard, QuickReplies, SuggestionCards, TryOnSuggestion, WeatherCard, type OutfitResult, type PackingListResult, type ProductCheckResult, type WeatherResult } from "./tool-views";
 
 type Part = DrawerUIMessage["parts"][number];
 type AnyTool = { type: string; toolCallId: string; state: string; input?: unknown; output?: unknown; errorText?: string };
@@ -189,6 +189,8 @@ function ToolBlock({ part, name, onAnswer, chatId }: { part: AnyTool; name: stri
       return ready ? <ProductCheckCard product={part.output as ProductCheckResult} /> : <Skeleton className="h-24 max-w-[420px]" label="Reading the product page…" />;
     case "show_items":
       return ready ? <ItemStrip {...(part.output as Parameters<typeof ItemStrip>[0])} /> : <Skeleton className="h-44 max-w-md" label="Pulling pieces…" />;
+    case "plan_packing":
+      return ready ? <PackingListCard list={part.output as PackingListResult} /> : <Skeleton className="h-56 max-w-[420px]" label="Packing your bag…" />;
     case "suggest_purchases":
       return ready ? <SuggestionCards items={(part.output as { items: Parameters<typeof SuggestionCards>[0]["items"] }).items} /> : <Skeleton className="h-56 max-w-md" label="Curating suggestions…" />;
     default:
