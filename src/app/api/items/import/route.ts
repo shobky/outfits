@@ -30,7 +30,7 @@ const importItem = z.object({
   size: z.string().max(20).optional(),
   description: z.string().max(500).optional(),
   notes: z.string().max(300).optional(),
-  image_url: z.string().url().max(500).optional(),
+  image_url: z.string().max(500).optional(),
   measurements: z
     .object({
       width_cm: z.number().positive().max(400).nullable().optional(),
@@ -101,10 +101,17 @@ export async function POST(req: Request) {
     try {
       let imageUrl: string | null = null;
       if (item.image_url) {
-        if (await repo.ownsImage(item.image_url)) {
-          imageUrl = item.image_url;
+        // Accept absolute app URLs and relative /api/wardrobe paths as already-owned; anything else is fetched and re-stored.
+        let raw = item.image_url;
+        try {
+          const u = new URL(raw);
+          if (u.pathname.startsWith("/api/wardrobe/")) raw = u.pathname;
+        } catch { /* relative path */ }
+        if (raw.startsWith("/") || (await repo.ownsImage(raw))) {
+          if (await repo.ownsImage(raw)) imageUrl = raw;
+          else warnings.push(`${item.name}: image path isn't one of yours, saved without a photo`);
         } else {
-          const fetched = await fetchCatalogImage(item.image_url);
+          const fetched = await fetchCatalogImage(raw);
           if (fetched) imageUrl = await repo.uploadImage(new Blob([new Uint8Array(fetched.data)]), fetched.ext);
           else warnings.push(`${item.name}: image couldn't be fetched, saved without a photo`);
         }
