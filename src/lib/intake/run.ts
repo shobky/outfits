@@ -53,6 +53,7 @@ function offlineGroups(count: number): AnalyzedGroup[] {
     formality: 2,
     warmth: 2,
     brand: null,
+    size: null,
     description: "",
     facts: "",
     confidence: 0,

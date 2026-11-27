@@ -32,7 +32,8 @@ const schema = z.object({
       formality: z.number().int().describe("1 lounge … 5 formal"),
       warmth: z.number().int().describe("1 very light … 5 very warm"),
       brand: z.string().nullable().describe("Only if a logo or label is clearly readable"),
-      size: z.string().max(80).nullable().optional().describe("Exact size printed on a clearly readable garment label, including its sizing system if shown. Null if unreadable. Never infer size or centimetres from appearance."),
+      // Never `.optional()` here: OpenAI structured outputs reject any property missing from `required`. Nullable is the way to say "may be absent".
+      size: z.string().max(80).nullable().describe("Exact size printed on a clearly readable garment label, including its sizing system if shown. Null if unreadable. Never infer size or centimetres from appearance."),
       description: z.string().describe("One sentence a stylist would use: fabric, cut, details, vibe"),
       facts: z
         .string()
