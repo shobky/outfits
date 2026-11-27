@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ChatGPTButton, ChatGPTMark, ManageUsage, useChatGPT } from "@/components/chatgpt";
 import { GarmentImage } from "@/components/drawer/item-card";
+import { ClosetStats } from "@/components/me/closet-stats";
 import { ProfilePhotoSetup } from "@/components/profile/profile-photo-setup";
 import { SavedTryOns } from "@/components/tryon/saved-try-ons";
 import { PushSettings } from "@/components/pwa/push-settings";
@@ -107,6 +108,8 @@ function ProfileForm({ data, onSaved }: { data: NonNullable<ReturnType<typeof us
           <a href="#try-on-profile" className="flex min-h-12 items-center justify-center rounded-2xl bg-surface px-3 text-sm font-medium focus-visible:outline-2 focus-visible:outline-accent">Try-on photos</a>
           <a href="#saved-try-ons" className="flex min-h-12 items-center justify-center rounded-2xl bg-surface px-3 text-sm font-medium focus-visible:outline-2 focus-visible:outline-accent">Saved previews</a>
         </nav>
+
+        <ClosetStats />
 
         <div id="profile-details" className="scroll-mt-20 space-y-2">
           <h2 className="px-1 text-lg font-semibold tracking-tight">Your details</h2>
