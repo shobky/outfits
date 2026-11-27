@@ -178,7 +178,19 @@ async function fetchRetailerDocument(raw: string): Promise<SafeBody | { error: "
       if (!url) return { error: "invalid" };
       const remaining = deadline - Date.now();
       if (remaining <= 0) return { error: "unverified" };
-      const response = await requestPinned(url, { "user-agent": "Mozilla/5.0 (compatible; OutfitsAppShop/1.0)", accept: "text/html,application/json,application/ld+json,*/*;q=0.1" }, MAX_DOCUMENT_BYTES, remaining);
+      // Retailer bot walls (e.g. DeFacto's Akamai) answer a self-identifying bot UA with 403,
+      // while ordinary browser headers get the real page. This only fetches public product pages.
+      const response = await requestPinned(
+        url,
+        {
+          "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+          accept: "text/html,application/xhtml+xml,application/xml;q=0.9,application/json,application/ld+json,image/avif,image/webp,*/*;q=0.8",
+          "accept-language": "en-EG,en;q=0.9,ar;q=0.8",
+          "upgrade-insecure-requests": "1",
+        },
+        MAX_DOCUMENT_BYTES,
+        remaining,
+      );
       const location = response.location;
       if (response.status >= 300 && response.status < 400 && location) { url = new URL(location, url); continue; }
       if (response.status === 404 || response.status === 410) return { error: "dead" };
