@@ -39,9 +39,13 @@ function WornRow({ item }: { item: Item }) {
 }
 
 /** Wear-log driven closet summary: what gets worn, what sits. */
+const isCatalog = (i: Item) => i.notes?.includes("[catalog:");
+
 export function ClosetStats() {
   const { data } = useItems();
-  const items = (data?.items ?? []).filter((i) => i.status === "active");
+  const all = (data?.items ?? []).filter((i) => i.status === "active");
+  const items = all.filter((i) => !isCatalog(i));
+  const catalogCount = all.length - items.length;
   if (!data || items.length === 0) return null;
 
   const totalWears = items.reduce((sum, i) => sum + i.wear_count, 0);
@@ -88,6 +92,7 @@ export function ClosetStats() {
         </div>
       )}
       {totalWears === 0 && <p className="text-[13px] text-muted">Log what you wear from the Outfits tab and your stats build themselves.</p>}
+      {catalogCount > 0 && <p className="text-[13px] text-faint">+ {catalogCount} catalog {catalogCount === 1 ? "piece" : "pieces"} ready to try on, not counted above.</p>}
     </section>
   );
 }

@@ -221,7 +221,7 @@ export function createTools(repo: Repo, profile: Profile) {
         const unavailable = items.filter((i) => i.in_laundry || i.status === "archived").map((i) => i.name);
         const slots = new Set(items.map((i) => slotFor(i.category)));
         const problems = [
-          ...(missing.length ? [`unknown ids: ${missing.join(", ")}`] : []),
+          ...(missing.length ? [`${missing.length} ${missing.length === 1 ? "piece" : "pieces"} couldn't be found in the drawer`] : []),
           ...(unavailable.length ? [`not available (laundry/archived): ${unavailable.join(", ")}`] : []),
           ...(!slots.has("shoes") ? ["no shoes"] : []),
           ...(!slots.has("onepiece") && !(slots.has("top") && slots.has("bottom")) ? ["needs top + bottom"] : []),
@@ -278,7 +278,7 @@ export function createTools(repo: Repo, profile: Profile) {
           note: note ?? null,
           weather,
           problems: [
-            ...(missing.length ? [`unknown ids: ${missing.join(", ")}`] : []),
+            ...(missing.length ? [`${missing.length} ${missing.length === 1 ? "piece" : "pieces"} couldn't be found in the drawer`] : []),
             ...(unavailable.length ? [`in the laundry or archived: ${unavailable.join(", ")}`] : []),
           ],
           items: items.map(visual).sort((a, b) => order.indexOf(a.slot) - order.indexOf(b.slot)),

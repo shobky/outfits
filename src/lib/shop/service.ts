@@ -58,7 +58,7 @@ function cached(key: string) {
   return entry.value;
 }
 
-function isPrivateIp(raw: string) {
+export function isPrivateIp(raw: string) {
   const ip = raw.toLowerCase().replace(/^\[|\]$/g, "");
   if (ip.startsWith("::ffff:")) return isPrivateIp(ip.slice(7));
   if (isIP(ip) === 4) {

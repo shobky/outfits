@@ -12,7 +12,7 @@ export interface ItemImage {
 }
 
 export interface Item {
-  garment_dimensions?: { width_cm: number | null; length_cm: number | null; source: "user" } | null;
+  garment_dimensions?: { width_cm: number | null; length_cm: number | null; source: "user" | "catalog" } | null;
   /** Photo pixels, never physical centimetres. */
   photo_geometry?: { width_px: number; height_px: number; aspect_ratio: number } | null;
   id: string;
